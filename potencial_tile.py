@@ -123,7 +123,7 @@ class TileIntersectionApp:
         self.last_update_time = 0
         self.lock = threading.Lock()
 
-        # Столбцы, которые нужно тянуть из справочника (добавлен operator_name)
+        # Столбцы, которые нужно тянуть из справочника
         self.columns_needed = [
             "s2_cell_id_13",
             "geounit_name",
@@ -138,7 +138,6 @@ class TileIntersectionApp:
             "gap_scorinq_qual_beeline",
             "Sale_Potential",
             "SAVE_potential",
-            "operator_name",
         ]
 
     def on_format_change(self):
@@ -293,8 +292,8 @@ class TileIntersectionApp:
 
             for chunk in pd.read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size, usecols=self.columns_needed):
                 chunk['s2_cell_id_13'] = chunk['s2_cell_id_13'].astype(str).str.strip()
-                # Фильтрация по tile_id и operator_name == "Tele2"
-                filtered = chunk[(chunk['s2_cell_id_13'].isin(tile_ids_set)) & (chunk['operator_name'] == "Tele2")]
+                # Фильтрация по tile_id
+                filtered = chunk[(chunk['s2_cell_id_13'].isin(tile_ids_set))]
                 found_rows += len(filtered)
                 total_rows += len(chunk)
                 if not filtered.empty:
