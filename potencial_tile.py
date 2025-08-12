@@ -18,10 +18,18 @@ ERROR_COLOR = "#ff3b30"  # red for error messages
 GREY_TEXT = "#8e8e93"  # system grey
 
 FONT_FAMILY = "SF Pro Text"
+
 FONT_TITLE = (FONT_FAMILY, 24, "bold")
 FONT_BOLD = (FONT_FAMILY, 14, "bold")
 FONT_NORMAL = (FONT_FAMILY, 12)
 FONT_SMALL_ITALIC = (FONT_FAMILY, 10, "italic")
+
+FONT_BOLD = (FONT_FAMILY, 11, "bold")
+FONT_NORMAL = (FONT_FAMILY, 10)
+FONT_SMALL_ITALIC = (FONT_FAMILY, 9, "italic")
+
+import theme
+
 
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
@@ -32,11 +40,23 @@ class TileIntersectionApp:
         self.root.title("Определение тайлов")
         self.root.geometry("830x560")
         self.root.resizable(False, False)
+
         self.root.configure(bg=BG_COLOR)
+
+
+        self.root.configure(bg=BG_COLOR)
+
+        self.root.configure(bg=theme.BG_COLOR)
+
+
 
         self.file_path = None
         self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
         self.input_format = 'WKT'
+
+
+        # Цвета и шрифты вынесены в отдельный модуль theme
+
 
         self.bg_color = BG_COLOR
         self.frame_bg = FRAME_BG
@@ -47,8 +67,19 @@ class TileIntersectionApp:
         self.error_color = ERROR_COLOR
         self.grey_text = GREY_TEXT
 
+
         container = tk.Frame(self.root, bg=self.bg_color)
         container.pack(fill="both", expand=True, padx=40, pady=30)
+
+        self.bg_color = theme.BG_COLOR
+        self.frame_bg = theme.FRAME_BG
+        self.font_bold = theme.FONT_BOLD
+        self.font_normal = theme.FONT_NORMAL
+        self.accent_color = theme.ACCENT_COLOR
+        self.success_color = theme.SUCCESS_COLOR
+        self.error_color = theme.ERROR_COLOR
+        self.grey_text = theme.GREY_TEXT
+
 
         header = tk.Label(container, text="Определение тайлов", bg=self.bg_color,
                           fg="#1c1c1e", font=FONT_TITLE)
@@ -81,8 +112,13 @@ class TileIntersectionApp:
         self.file_label_text = tk.StringVar()
         self.update_file_label_text()
         label_file_desc = tk.Label(input_file_frame, textvariable=self.file_label_text, bg=self.frame_bg,
+
                                    fg="#1c1c1e", font=self.font_normal, anchor="w")
         label_file_desc.pack(fill="x", padx=12, pady=(12, 4))
+
+                                fg="#1c1c1e", font=self.font_normal, anchor="w")
+        label_file_desc.pack(fill="x", padx=10, pady=(10, 3))
+
 
         btn_file = tk.Button(
             input_file_frame,
@@ -91,6 +127,7 @@ class TileIntersectionApp:
             bg=self.accent_color,
             fg="white",
             font=self.font_bold,
+
             activebackground=ACCENT_HOVER,
             cursor="hand2",
             relief="flat",
@@ -99,6 +136,24 @@ class TileIntersectionApp:
         )
         btn_file.pack(padx=12, pady=(0, 12), anchor="w")
         btn_file.bind("<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER))
+
+
+            activebackground=ACCENT_HOVER,
+
+            activebackground=theme.ACCENT_HOVER,
+
+            cursor="hand2",
+            relief="flat",
+            padx=15,
+            pady=5,
+        )
+        btn_file.pack(padx=10, pady=(0, 10), anchor="w")
+
+        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER))
+
+        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=theme.ACCENT_HOVER))
+
+
         btn_file.bind("<Leave>", lambda e: btn_file.config(bg=self.accent_color))
 
         self.filename_label = tk.Label(
@@ -106,10 +161,21 @@ class TileIntersectionApp:
             text="",
             bg=self.frame_bg,
             fg=self.grey_text,
+
             font=FONT_SMALL_ITALIC,
             anchor="w",
         )
         self.filename_label.pack(fill="x", padx=12, pady=(0, 12))
+
+
+            font=FONT_SMALL_ITALIC,
+
+            font=theme.FONT_SMALL_ITALIC,
+
+            anchor="w",
+        )
+        self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
+
 
         # --- Прогресс ---
         progress_frame = tk.Frame(container, bg=self.bg_color)
@@ -135,14 +201,26 @@ class TileIntersectionApp:
 
         # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
+
             container,
+
+            frame,
+
             text="Начать обработку",
             state=tk.DISABLED,
             command=self.start_processing,
             bg=self.accent_color,
             fg="white",
             font=self.font_bold,
+
             activebackground=ACCENT_HOVER,
+
+
+            activebackground=ACCENT_HOVER,
+
+            activebackground=theme.ACCENT_HOVER,
+
+
             cursor="hand2",
             relief="flat",
             padx=25,
@@ -152,7 +230,15 @@ class TileIntersectionApp:
         # Обеспечиваем белый цвет текста при наведении и уходе мыши
         self.btn_process.bind(
             "<Enter>",
+
             lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
+
+
+            lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
+
+            lambda e: self.btn_process.config(bg=theme.ACCENT_HOVER, fg="white"),
+
+
         )
         self.btn_process.bind(
             "<Leave>",
