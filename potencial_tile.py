@@ -42,7 +42,7 @@ class TileIntersectionApp:
         format_frame.pack(fill="x", pady=(0, 15))
 
         self.input_format_var = tk.StringVar(value='wkt')
-        format_options = ['wkt', 'coords']
+        format_options = ['WKT', 'LAT / LON']
         self.format_combo = ttk.Combobox(format_frame, textvariable=self.input_format_var, values=format_options,
                                         state="readonly", width=17, font=self.font_normal)
         self.format_combo.pack(padx=10, pady=8, anchor='w')
