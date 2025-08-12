@@ -1,13 +1,14 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import pandas as pd
-import math
 import os
 import re
 import threading
 import time
-from s2sphere import RegionCoverer, Cap, LatLng, Angle
 from openpyxl import load_workbook
+from s2sphere import CellId, LatLng
+
+WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
 
 class TileIntersectionApp:
@@ -192,7 +193,7 @@ class TileIntersectionApp:
         try:
             if isinstance(position, float) and pd.isna(position):
                 return None, None
-            wkt_match = re.match(r'POINT\s*\(\s*([\d\.\-]+)\s+([\d\.\-]+)\s*\)', str(position))
+            wkt_match = WKT_POINT_RE.match(str(position))
             if wkt_match:
                 lon = float(wkt_match.group(1))
                 lat = float(wkt_match.group(2))
@@ -207,15 +208,7 @@ class TileIntersectionApp:
         try:
             if lat is None or lon is None:
                 return None
-            region = Cap.from_axis_angle(
-                LatLng.from_degrees(lat, lon).to_point(),
-                Angle.from_degrees(360 * 1 / (2 * math.pi * 6371000))
-            )
-            coverer = RegionCoverer()
-            coverer.min_level = 13
-            coverer.max_level = 13
-            cells = coverer.get_covering(region)
-            return str(sorted([x.id() for x in cells])[0]) if cells else None
+            return str(CellId.from_lat_lng(LatLng.from_degrees(lat, lon)).parent(13).id())
         except Exception as e:
             print(f"Ошибка определения тайла ({lat}, {lon}) --- {e}")
             return None
