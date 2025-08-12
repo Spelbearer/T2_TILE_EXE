@@ -16,81 +16,129 @@ class TileIntersectionApp:
         self.root.title("Определение тайлов")
         self.root.geometry("830x560")
         self.root.resizable(False, False)
+        self.root.configure(bg="#f0f2f5")
 
         self.file_path = None
         self.match_file_path = None
         self.input_format = 'wkt'
 
-        self.bg_color = "#f6f6f6"
-        frame = tk.Frame(self.root, bg=self.bg_color)
-        frame.pack(fill="both", expand=True, padx=12, pady=10)
+        # Цвета и шрифты
+        self.bg_color = "#f0f2f5"
+        self.frame_bg = "white"
+        self.font_bold = ("Segoe UI", 11, "bold")
+        self.font_normal = ("Segoe UI", 10)
+        self.accent_color = "#0078D7"  # Синий Microsoft-style
+        self.success_color = "#28a745"
+        self.error_color = "#c0392b"
+        self.grey_text = "#454649"
 
-        # 1. Выбор формата входных данных
-        tk.Label(
-            frame,
-            text="1. Выберите формат входных данных:",
-            anchor='w', bg=self.bg_color, font=("Arial", 11, 'bold'),
-        ).pack(fill="x", pady=(0, 5))
+        frame = tk.Frame(self.root, bg=self.bg_color)
+        frame.pack(fill="both", expand=True, padx=15, pady=15)
+
+        # --- Блок выбора формата ---
+        format_frame = tk.LabelFrame(frame, text="1. Выберите формат входных данных:",
+                                    bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
+        format_frame.pack(fill="x", pady=(0, 15))
+
         self.input_format_var = tk.StringVar(value='wkt')
         format_options = ['wkt', 'coords']
-        self.format_combo = ttk.Combobox(frame, textvariable=self.input_format_var, values=format_options,
-                                        state="readonly", width=15)
-        self.format_combo.pack(pady=(0, 15), anchor='w')
+        self.format_combo = ttk.Combobox(format_frame, textvariable=self.input_format_var, values=format_options,
+                                        state="readonly", width=17, font=self.font_normal)
+        self.format_combo.pack(padx=10, pady=8, anchor='w')
         self.format_combo.current(0)
+        self.format_combo.bind("<<ComboboxSelected>>", lambda e: self.on_format_change())
 
-        # 2. Загрузка исходного файла
+        # --- Загрузка исходного файла ---
+        input_file_frame = tk.LabelFrame(frame, text="2. Загрузка исходного файла",
+                                        bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
+        input_file_frame.pack(fill="x", pady=(0, 15))
+
         self.file_label_text = tk.StringVar()
         self.update_file_label_text()
+        label_file_desc = tk.Label(input_file_frame, textvariable=self.file_label_text, bg=self.frame_bg,
+                                fg="black", font=self.font_normal, anchor="w")
+        label_file_desc.pack(fill="x", padx=10, pady=(10, 3))
 
-        tk.Label(
-            frame,
-            textvariable=self.file_label_text,
-            anchor='w', bg=self.bg_color, font=("Arial", 11, 'bold'),
-        ).pack(fill="x", pady=(0, 2))
-        tk.Button(frame, text="Выбрать исходный файл", command=self.load_file).pack(pady=(0, 8))
+        btn_file = tk.Button(input_file_frame, text="Выбрать исходный файл", command=self.load_file,
+                            bg=self.accent_color, fg="white", font=self.font_bold,
+                            activebackground="#005a9e", cursor="hand2", relief="flat", padx=15, pady=5)
+        btn_file.pack(padx=10, pady=(0, 10), anchor='w')
+        btn_file.bind("<Enter>", lambda e: btn_file.config(bg="#005a9e"))
+        btn_file.bind("<Leave>", lambda e: btn_file.config(bg=self.accent_color))
 
-        self.filename_label = tk.Label(frame, text="", bg=self.bg_color, fg="grey")
-        self.filename_label.pack(fill="x", pady=(0, 10))
+        self.filename_label = tk.Label(input_file_frame, text="", bg=self.frame_bg, fg=self.grey_text,
+                                    font=("Segoe UI", 9, "italic"), anchor="w")
+        self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
 
-        # 3. Загрузка справочника
-        tk.Label(
-            frame,
-            text="3. Загрузите файл-справочник (s2_cell_id_13):",
-            anchor='w', bg=self.bg_color, font=("Arial", 11, 'bold'),
-        ).pack(fill="x", pady=(0, 2))
-        tk.Button(frame, text="Выбрать справочник", command=self.load_match_file).pack(pady=(0, 8))
+        # --- Загрузка справочника ---
+        ref_file_frame = tk.LabelFrame(frame, text="3. Загрузка файла-справочника (s2_cell_id_13):",
+                                    bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
+        ref_file_frame.pack(fill="x", pady=(0, 15))
 
-        self.match_filename_label = tk.Label(frame, text="", bg=self.bg_color, fg="grey")
-        self.match_filename_label.pack(fill="x", pady=(0, 15))
+        btn_ref = tk.Button(ref_file_frame, text="Выбрать справочник", command=self.load_match_file,
+                            bg=self.accent_color, fg="white", font=self.font_bold,
+                            activebackground="#005a9e", cursor="hand2", relief="flat", padx=15, pady=5)
+        btn_ref.pack(padx=10, pady=(10, 8), anchor='w')
+        btn_ref.bind("<Enter>", lambda e: btn_ref.config(bg="#005a9e"))
+        btn_ref.bind("<Leave>", lambda e: btn_ref.config(bg=self.accent_color))
 
-        # Прогрессбар и счетчик
-        self.progress = ttk.Progressbar(frame, orient=tk.HORIZONTAL, length=650, mode='determinate')
-        self.progress.pack(pady=12)
-        self.progress.pack_forget()
+        self.match_filename_label = tk.Label(ref_file_frame, text="", bg=self.frame_bg, fg=self.grey_text,
+                                            font=("Segoe UI", 9, "italic"), anchor="w")
+        self.match_filename_label.pack(fill="x", padx=10, pady=(0, 10))
+
+        # --- Прогресс ---
+        progress_frame = tk.Frame(frame, bg=self.bg_color)
+        progress_frame.pack(fill="x", pady=(10, 10))
+
+        self.progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, length=680, mode='determinate')
+        self.progress.pack(side="left", padx=(0, 10), pady=5)
 
         self.counter_var = tk.StringVar(value="")
-        tk.Label(frame, textvariable=self.counter_var, fg="#34495e", bg=self.bg_color).pack(pady=(0, 15))
+        self.counter_label = tk.Label(progress_frame, textvariable=self.counter_var, fg="#34495e",
+                                    bg=self.bg_color, font=self.font_normal)
+        self.counter_label.pack(side="left", pady=5)
 
-        # Кнопка запуска обработки
+        # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
-            frame, text="Начать обработку", state=tk.DISABLED, command=self.start_processing, bg='#3498db', fg='white'
+            frame, text="Начать обработку", state=tk.DISABLED, command=self.start_processing,
+            bg=self.accent_color, fg='white', font=self.font_bold, activebackground="#005a9e",
+            cursor="hand2", relief="flat", padx=25, pady=8
         )
-        self.btn_process.pack(pady=16)
+        self.btn_process.pack(pady=20)
+        # Обеспечиваем белый цвет текста при наведении и уходе мыши
+        self.btn_process.bind("<Enter>", lambda e: self.btn_process.config(bg="#005a9e", fg='white'))
+        self.btn_process.bind("<Leave>", lambda e: self.btn_process.config(bg=self.accent_color, fg='white'))
 
-        self.result = tk.Label(frame, text="", fg="#2c3e50", bg=self.bg_color, justify='left', wraplength=780)
+        self.result = tk.Label(frame, text="", fg="#2c3e50", bg=self.bg_color,
+                            justify='left', wraplength=780, font=self.font_normal)
         self.result.pack(pady=10)
 
         self.output_dir = os.path.expanduser(r"~/Downloads/Tile_Results")
         os.makedirs(self.output_dir, exist_ok=True)
-
-        # Привязка обновления подписи к смене формата
-        self.format_combo.bind("<<ComboboxSelected>>", lambda e: self.on_format_change())
 
         # Для обновления прогресса из потока
         self.total_rows = 0
         self.current_row = 0
         self.last_update_time = 0
         self.lock = threading.Lock()
+
+        # Столбцы, которые нужно тянуть из справочника (добавлен operator_name)
+        self.columns_needed = [
+            "s2_cell_id_13",
+            "geounit_name",
+            "ADM_name",
+            "town_name",
+            "tele2_scoring_qual",
+            "mts_scoring_qual",
+            "megafon_scoring_qual",
+            "beeline_scoring_qual",
+            "gap_scorinq_qual_mts",
+            "gap_scorinq_qual_megafon",
+            "gap_scorinq_qual_beeline",
+            "Sale_Potential",
+            "SAVE_potential",
+            "operator_name",
+        ]
 
     def on_format_change(self):
         self.input_format = self.format_combo.get()
@@ -194,7 +242,7 @@ class TileIntersectionApp:
             fmt = getattr(self, "input_format", "wkt")
             print(f"Используем формат: {fmt}")
 
-            # Читаем файлы напрямую без кэширования
+            # Читаем исходный файл
             df = pd.read_csv(self.file_path, sep=';')
 
             if fmt == 'wkt':
@@ -244,15 +292,16 @@ class TileIntersectionApp:
             df['tile_id'] = tile_ids
             tile_ids_set = set(df['tile_id'].astype(str).str.strip())
 
-            # Обработка справочника
+            # Обработка справочника с фильтрацией по оператору Tele2
             matches = []
             chunk_size = 100_000
             found_rows = 0
             total_rows = 0
 
-            for chunk in pd.read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size):
+            for chunk in pd.read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size, usecols=self.columns_needed):
                 chunk['s2_cell_id_13'] = chunk['s2_cell_id_13'].astype(str).str.strip()
-                filtered = chunk[chunk['s2_cell_id_13'].isin(tile_ids_set)]
+                # Фильтрация по tile_id и operator_name == "Tele2"
+                filtered = chunk[(chunk['s2_cell_id_13'].isin(tile_ids_set)) & (chunk['operator_name'] == "Tele2")]
                 found_rows += len(filtered)
                 total_rows += len(chunk)
                 if not filtered.empty:
@@ -261,7 +310,7 @@ class TileIntersectionApp:
             if matches:
                 df2_filtered = pd.concat(matches, ignore_index=True)
             else:
-                df2_filtered = pd.DataFrame(columns=['s2_cell_id_13'])
+                df2_filtered = pd.DataFrame(columns=self.columns_needed)
 
             df['tile_id'] = df['tile_id'].astype(str).str.strip()
             df2_filtered['s2_cell_id_13'] = df2_filtered['s2_cell_id_13'].astype(str).str.strip()
@@ -339,14 +388,14 @@ class TileIntersectionApp:
                      f"В объединённой выгрузке {final_count} строк.\n"
                      f"Найдено соответствий во втором файле: {found_rows} из {total_rows}.\n"
                      f"Результат сохранён в:\n{output_path}",
-                fg="#27ae60"
+                fg=self.success_color
             )
             try:
                 os.startfile(self.output_dir)
             except Exception:
                 pass
         else:
-            self.result.config(text="Ошибка во время обработки.", fg="red")
+            self.result.config(text="Ошибка во время обработки.", fg=self.error_color)
 
 
 if __name__ == "__main__":
