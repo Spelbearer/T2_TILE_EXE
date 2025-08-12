@@ -21,7 +21,7 @@ class TileIntersectionApp:
 
         self.file_path = None
         self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
-        self.input_format = 'wkt'
+        self.input_format = 'WKT'
 
         # Цвета и шрифты
         self.bg_color = "#f0f2f5"
@@ -41,7 +41,7 @@ class TileIntersectionApp:
                                     bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
         format_frame.pack(fill="x", pady=(0, 15))
 
-        self.input_format_var = tk.StringVar(value='wkt')
+        self.input_format_var = tk.StringVar(value='WKT')
         format_options = ['WKT', 'LAT / LON']
         self.format_combo = ttk.Combobox(format_frame, textvariable=self.input_format_var, values=format_options,
                                         state="readonly", width=17, font=self.font_normal)
@@ -133,7 +133,7 @@ class TileIntersectionApp:
 
     def update_file_label_text(self):
         fmt = self.input_format_var.get()
-        if fmt == 'wkt':
+        if fmt == 'WKT':
             text = "2. Загрузите исходный файл (обязательна колонка BS_POSITION в формате WKT):"
         else:
             text = "2. Загрузите исходный файл (обязательны колонки LATITUDE и LONGITUDE):"
@@ -202,19 +202,19 @@ class TileIntersectionApp:
     def process_file(self):
         """Обработка файла в отдельном потоке"""
         try:
-            fmt = getattr(self, "input_format", "wkt")
+            fmt = getattr(self, "input_format", "WKT")
             print(f"Используем формат: {fmt}")
 
             # Читаем исходный файл
             df = pd.read_csv(self.file_path, sep=';')
 
-            if fmt == 'wkt':
+            if fmt == 'WKT':
                 if 'BS_POSITION' not in df.columns:
                     self.show_error_threadsafe("Нет колонки 'BS_POSITION'")
                     return None
-            elif fmt == 'coords':
+            elif fmt == 'LAT / LON':
                 if 'LATITUDE' not in df.columns or 'LONGITUDE' not in df.columns:
-                    self.show_error_threadsafe("Требуются колонки 'LATITUDE' и 'LONGITUDE' для формата coords")
+                    self.show_error_threadsafe("Требуются колонки 'LATITUDE' и 'LONGITUDE' для формата LAT / LON")
                     return None
 
                 def to_wkt(lat, lon):
@@ -290,7 +290,7 @@ class TileIntersectionApp:
             if 'tile_id' in merged.columns:
                 merged.drop(columns=['tile_id'], inplace=True)
 
-            if fmt == 'coords':
+            if fmt == 'LAT / LON':
                 for col in ['LATITUDE', 'LONGITUDE']:
                     if col in merged.columns:
                         merged.drop(columns=[col], inplace=True)
