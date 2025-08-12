@@ -8,6 +8,9 @@ import time
 from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
 
+# Centralised theme constants for a pastel Apple-like interface
+import theme
+
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
 
@@ -17,21 +20,21 @@ class TileIntersectionApp:
         self.root.title("Определение тайлов")
         self.root.geometry("830x560")
         self.root.resizable(False, False)
-        self.root.configure(bg="#f5f5f7")
+        self.root.configure(bg=theme.BG_COLOR)
 
         self.file_path = None
         self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
         self.input_format = 'WKT'
 
-        # Цвета и шрифты в минималистичном стиле Apple
-        self.bg_color = "#f5f5f7"
-        self.frame_bg = "white"
-        self.font_bold = ("Helvetica Neue", 11, "bold")
-        self.font_normal = ("Helvetica Neue", 10)
-        self.accent_color = "#007aff"  # Синий Apple-style
-        self.success_color = "#34c759"
-        self.error_color = "#ff3b30"
-        self.grey_text = "#8e8e93"
+        # Цвета и шрифты вынесены в отдельный модуль theme
+        self.bg_color = theme.BG_COLOR
+        self.frame_bg = theme.FRAME_BG
+        self.font_bold = theme.FONT_BOLD
+        self.font_normal = theme.FONT_NORMAL
+        self.accent_color = theme.ACCENT_COLOR
+        self.success_color = theme.SUCCESS_COLOR
+        self.error_color = theme.ERROR_COLOR
+        self.grey_text = theme.GREY_TEXT
 
         frame = tk.Frame(self.root, bg=self.bg_color)
         frame.pack(fill="both", expand=True, padx=15, pady=15)
@@ -60,15 +63,31 @@ class TileIntersectionApp:
                                 fg="#1c1c1e", font=self.font_normal, anchor="w")
         label_file_desc.pack(fill="x", padx=10, pady=(10, 3))
 
-        btn_file = tk.Button(input_file_frame, text="Выбрать исходный файл", command=self.load_file,
-                            bg=self.accent_color, fg="white", font=self.font_bold,
-                            activebackground="#0051a8", cursor="hand2", relief="flat", padx=15, pady=5)
-        btn_file.pack(padx=10, pady=(0, 10), anchor='w')
-        btn_file.bind("<Enter>", lambda e: btn_file.config(bg="#0051a8"))
+        btn_file = tk.Button(
+            input_file_frame,
+            text="Выбрать исходный файл",
+            command=self.load_file,
+            bg=self.accent_color,
+            fg="white",
+            font=self.font_bold,
+            activebackground=theme.ACCENT_HOVER,
+            cursor="hand2",
+            relief="flat",
+            padx=15,
+            pady=5,
+        )
+        btn_file.pack(padx=10, pady=(0, 10), anchor="w")
+        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=theme.ACCENT_HOVER))
         btn_file.bind("<Leave>", lambda e: btn_file.config(bg=self.accent_color))
 
-        self.filename_label = tk.Label(input_file_frame, text="", bg=self.frame_bg, fg=self.grey_text,
-                                    font=("Helvetica Neue", 9, "italic"), anchor="w")
+        self.filename_label = tk.Label(
+            input_file_frame,
+            text="",
+            bg=self.frame_bg,
+            fg=self.grey_text,
+            font=theme.FONT_SMALL_ITALIC,
+            anchor="w",
+        )
         self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
 
         # --- Прогресс ---
@@ -76,9 +95,14 @@ class TileIntersectionApp:
         progress_frame.pack(fill="x", pady=(10, 10))
 
         style = ttk.Style()
-        style.configure("Accent.Horizontal.TProgressbar", troughcolor=self.bg_color,
-                        bordercolor=self.bg_color, background=self.accent_color,
-                        lightcolor=self.accent_color, darkcolor=self.accent_color)
+        style.configure(
+            "Accent.Horizontal.TProgressbar",
+            troughcolor=self.bg_color,
+            bordercolor=self.bg_color,
+            background=self.accent_color,
+            lightcolor=self.accent_color,
+            darkcolor=self.accent_color,
+        )
         self.progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, length=680,
                                         mode='determinate', style="Accent.Horizontal.TProgressbar")
         self.progress.pack(side="left", padx=(0, 10), pady=5)
@@ -90,14 +114,29 @@ class TileIntersectionApp:
 
         # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
-            frame, text="Начать обработку", state=tk.DISABLED, command=self.start_processing,
-            bg=self.accent_color, fg='white', font=self.font_bold, activebackground="#0051a8",
-            cursor="hand2", relief="flat", padx=25, pady=8
+            frame,
+            text="Начать обработку",
+            state=tk.DISABLED,
+            command=self.start_processing,
+            bg=self.accent_color,
+            fg="white",
+            font=self.font_bold,
+            activebackground=theme.ACCENT_HOVER,
+            cursor="hand2",
+            relief="flat",
+            padx=25,
+            pady=8,
         )
         self.btn_process.pack(pady=20)
         # Обеспечиваем белый цвет текста при наведении и уходе мыши
-        self.btn_process.bind("<Enter>", lambda e: self.btn_process.config(bg="#0051a8", fg='white'))
-        self.btn_process.bind("<Leave>", lambda e: self.btn_process.config(bg=self.accent_color, fg='white'))
+        self.btn_process.bind(
+            "<Enter>",
+            lambda e: self.btn_process.config(bg=theme.ACCENT_HOVER, fg="white"),
+        )
+        self.btn_process.bind(
+            "<Leave>",
+            lambda e: self.btn_process.config(bg=self.accent_color, fg="white"),
+        )
 
         self.result = tk.Label(frame, text="", fg="#1c1c1e", bg=self.bg_color,
                             justify='left', wraplength=780, font=self.font_normal)
