@@ -9,7 +9,22 @@ from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
 
 # Centralised theme constants for a pastel Apple-like interface
+
+BG_COLOR = "#f5f5f7"  # light grey background
+FRAME_BG = "white"
+ACCENT_COLOR = "#5ac8fa"  # pastel blue accent
+ACCENT_HOVER = "#0a84ff"  # stronger blue when hovering
+SUCCESS_COLOR = "#34c759"  # green for success messages
+ERROR_COLOR = "#ff3b30"  # red for error messages
+GREY_TEXT = "#8e8e93"  # system grey
+
+FONT_FAMILY = "SF Pro Text"
+FONT_BOLD = (FONT_FAMILY, 11, "bold")
+FONT_NORMAL = (FONT_FAMILY, 10)
+FONT_SMALL_ITALIC = (FONT_FAMILY, 9, "italic")
+
 import theme
+
 
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
@@ -20,13 +35,27 @@ class TileIntersectionApp:
         self.root.title("Определение тайлов")
         self.root.geometry("830x560")
         self.root.resizable(False, False)
+
+        self.root.configure(bg=BG_COLOR)
+
         self.root.configure(bg=theme.BG_COLOR)
+
 
         self.file_path = None
         self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
         self.input_format = 'WKT'
 
         # Цвета и шрифты вынесены в отдельный модуль theme
+
+        self.bg_color = BG_COLOR
+        self.frame_bg = FRAME_BG
+        self.font_bold = FONT_BOLD
+        self.font_normal = FONT_NORMAL
+        self.accent_color = ACCENT_COLOR
+        self.success_color = SUCCESS_COLOR
+        self.error_color = ERROR_COLOR
+        self.grey_text = GREY_TEXT
+
         self.bg_color = theme.BG_COLOR
         self.frame_bg = theme.FRAME_BG
         self.font_bold = theme.FONT_BOLD
@@ -35,6 +64,7 @@ class TileIntersectionApp:
         self.success_color = theme.SUCCESS_COLOR
         self.error_color = theme.ERROR_COLOR
         self.grey_text = theme.GREY_TEXT
+
 
         frame = tk.Frame(self.root, bg=self.bg_color)
         frame.pack(fill="both", expand=True, padx=15, pady=15)
@@ -70,14 +100,22 @@ class TileIntersectionApp:
             bg=self.accent_color,
             fg="white",
             font=self.font_bold,
+
+            activebackground=ACCENT_HOVER,
+
             activebackground=theme.ACCENT_HOVER,
+
             cursor="hand2",
             relief="flat",
             padx=15,
             pady=5,
         )
         btn_file.pack(padx=10, pady=(0, 10), anchor="w")
+
+        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER))
+
         btn_file.bind("<Enter>", lambda e: btn_file.config(bg=theme.ACCENT_HOVER))
+
         btn_file.bind("<Leave>", lambda e: btn_file.config(bg=self.accent_color))
 
         self.filename_label = tk.Label(
@@ -85,7 +123,11 @@ class TileIntersectionApp:
             text="",
             bg=self.frame_bg,
             fg=self.grey_text,
+
+            font=FONT_SMALL_ITALIC,
+
             font=theme.FONT_SMALL_ITALIC,
+
             anchor="w",
         )
         self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
@@ -121,7 +163,11 @@ class TileIntersectionApp:
             bg=self.accent_color,
             fg="white",
             font=self.font_bold,
+
+            activebackground=ACCENT_HOVER,
+
             activebackground=theme.ACCENT_HOVER,
+
             cursor="hand2",
             relief="flat",
             padx=25,
@@ -131,7 +177,11 @@ class TileIntersectionApp:
         # Обеспечиваем белый цвет текста при наведении и уходе мыши
         self.btn_process.bind(
             "<Enter>",
+
+            lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
+
             lambda e: self.btn_process.config(bg=theme.ACCENT_HOVER, fg="white"),
+
         )
         self.btn_process.bind(
             "<Leave>",
