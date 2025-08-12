@@ -20,7 +20,7 @@ class TileIntersectionApp:
         self.root.configure(bg="#f0f2f5")
 
         self.file_path = None
-        self.match_file_path = None
+        self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
         self.input_format = 'wkt'
 
         # Цвета и шрифты
@@ -70,22 +70,6 @@ class TileIntersectionApp:
         self.filename_label = tk.Label(input_file_frame, text="", bg=self.frame_bg, fg=self.grey_text,
                                     font=("Segoe UI", 9, "italic"), anchor="w")
         self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
-
-        # --- Загрузка справочника ---
-        ref_file_frame = tk.LabelFrame(frame, text="3. Загрузка файла-справочника (s2_cell_id_13):",
-                                    bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
-        ref_file_frame.pack(fill="x", pady=(0, 15))
-
-        btn_ref = tk.Button(ref_file_frame, text="Выбрать справочник", command=self.load_match_file,
-                            bg=self.accent_color, fg="white", font=self.font_bold,
-                            activebackground="#005a9e", cursor="hand2", relief="flat", padx=15, pady=5)
-        btn_ref.pack(padx=10, pady=(10, 8), anchor='w')
-        btn_ref.bind("<Enter>", lambda e: btn_ref.config(bg="#005a9e"))
-        btn_ref.bind("<Leave>", lambda e: btn_ref.config(bg=self.accent_color))
-
-        self.match_filename_label = tk.Label(ref_file_frame, text="", bg=self.frame_bg, fg=self.grey_text,
-                                            font=("Segoe UI", 9, "italic"), anchor="w")
-        self.match_filename_label.pack(fill="x", padx=10, pady=(0, 10))
 
         # --- Прогресс ---
         progress_frame = tk.Frame(frame, bg=self.bg_color)
@@ -169,21 +153,8 @@ class TileIntersectionApp:
             )
         self.check_all_files()
 
-    def load_match_file(self):
-        match_file_path = filedialog.askopenfilename(
-            filetypes=[('Text files', '*.txt'), ('CSV files', '*.csv'), ('All files', '*.*')],
-            title="Выберите справочник (s2_cell_id_13)"
-        )
-        if match_file_path:
-            self.match_file_path = match_file_path
-            self.match_filename_label.config(
-                text=os.path.basename(self.match_file_path),
-                fg="green"
-            )
-        self.check_all_files()
-
     def check_all_files(self):
-        if self.file_path and self.match_file_path:
+        if self.file_path:
             self.btn_process.config(state=tk.NORMAL)
         else:
             self.btn_process.config(state=tk.DISABLED)
