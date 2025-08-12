@@ -8,6 +8,21 @@ import time
 from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
 
+# Centralised theme constants for a pastel Apple-like interface
+BG_COLOR = "#f5f5f7"  # light grey background
+FRAME_BG = "white"
+ACCENT_COLOR = "#5ac8fa"  # pastel blue accent
+ACCENT_HOVER = "#0a84ff"  # stronger blue when hovering
+SUCCESS_COLOR = "#34c759"  # green for success messages
+ERROR_COLOR = "#ff3b30"  # red for error messages
+GREY_TEXT = "#8e8e93"  # system grey
+
+FONT_FAMILY = "SF Pro Text"
+FONT_TITLE = (FONT_FAMILY, 24, "bold")
+FONT_BOLD = (FONT_FAMILY, 14, "bold")
+FONT_NORMAL = (FONT_FAMILY, 12)
+FONT_SMALL_ITALIC = (FONT_FAMILY, 10, "italic")
+
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
 
@@ -17,68 +32,98 @@ class TileIntersectionApp:
         self.root.title("Определение тайлов")
         self.root.geometry("830x560")
         self.root.resizable(False, False)
-        self.root.configure(bg="#f5f5f7")
+        self.root.configure(bg=BG_COLOR)
 
         self.file_path = None
         self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
         self.input_format = 'WKT'
 
-        # Цвета и шрифты в минималистичном стиле Apple
-        self.bg_color = "#f5f5f7"
-        self.frame_bg = "white"
-        self.font_bold = ("Helvetica Neue", 11, "bold")
-        self.font_normal = ("Helvetica Neue", 10)
-        self.accent_color = "#007aff"  # Синий Apple-style
-        self.success_color = "#34c759"
-        self.error_color = "#ff3b30"
-        self.grey_text = "#8e8e93"
+        self.bg_color = BG_COLOR
+        self.frame_bg = FRAME_BG
+        self.font_bold = FONT_BOLD
+        self.font_normal = FONT_NORMAL
+        self.accent_color = ACCENT_COLOR
+        self.success_color = SUCCESS_COLOR
+        self.error_color = ERROR_COLOR
+        self.grey_text = GREY_TEXT
 
-        frame = tk.Frame(self.root, bg=self.bg_color)
-        frame.pack(fill="both", expand=True, padx=15, pady=15)
+        container = tk.Frame(self.root, bg=self.bg_color)
+        container.pack(fill="both", expand=True, padx=40, pady=30)
+
+        header = tk.Label(container, text="Определение тайлов", bg=self.bg_color,
+                          fg="#1c1c1e", font=FONT_TITLE)
+        header.pack(anchor="w", pady=(0, 20))
 
         # --- Блок выбора формата ---
-        format_frame = tk.LabelFrame(frame, text="1. Выберите формат входных данных:",
-                                    bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
-        format_frame.pack(fill="x", pady=(0, 15))
+        format_label = tk.Label(container, text="1. Выберите формат входных данных", bg=self.bg_color,
+                                fg=self.accent_color, font=self.font_bold)
+        format_label.pack(anchor="w")
+
+        format_frame = tk.Frame(container, bg=self.frame_bg)
+        format_frame.pack(fill="x", pady=(8, 20))
 
         self.input_format_var = tk.StringVar(value='WKT')
         format_options = ['WKT', 'LAT / LON']
         self.format_combo = ttk.Combobox(format_frame, textvariable=self.input_format_var, values=format_options,
                                         state="readonly", width=17, font=self.font_normal)
-        self.format_combo.pack(padx=10, pady=8, anchor='w')
+        self.format_combo.pack(padx=12, pady=12, anchor='w')
         self.format_combo.current(0)
         self.format_combo.bind("<<ComboboxSelected>>", lambda e: self.on_format_change())
 
         # --- Загрузка исходного файла ---
-        input_file_frame = tk.LabelFrame(frame, text="2. Загрузка исходного файла",
-                                        bg=self.frame_bg, fg=self.accent_color, font=self.font_bold)
-        input_file_frame.pack(fill="x", pady=(0, 15))
+        input_label = tk.Label(container, text="2. Загрузка исходного файла", bg=self.bg_color,
+                               fg=self.accent_color, font=self.font_bold)
+        input_label.pack(anchor="w")
+
+        input_file_frame = tk.Frame(container, bg=self.frame_bg)
+        input_file_frame.pack(fill="x", pady=(8, 20))
 
         self.file_label_text = tk.StringVar()
         self.update_file_label_text()
         label_file_desc = tk.Label(input_file_frame, textvariable=self.file_label_text, bg=self.frame_bg,
-                                fg="#1c1c1e", font=self.font_normal, anchor="w")
-        label_file_desc.pack(fill="x", padx=10, pady=(10, 3))
+                                   fg="#1c1c1e", font=self.font_normal, anchor="w")
+        label_file_desc.pack(fill="x", padx=12, pady=(12, 4))
 
-        btn_file = tk.Button(input_file_frame, text="Выбрать исходный файл", command=self.load_file,
-                            bg=self.accent_color, fg="white", font=self.font_bold,
-                            activebackground="#0051a8", cursor="hand2", relief="flat", padx=15, pady=5)
-        btn_file.pack(padx=10, pady=(0, 10), anchor='w')
-        btn_file.bind("<Enter>", lambda e: btn_file.config(bg="#0051a8"))
+        btn_file = tk.Button(
+            input_file_frame,
+            text="Выбрать исходный файл",
+            command=self.load_file,
+            bg=self.accent_color,
+            fg="white",
+            font=self.font_bold,
+            activebackground=ACCENT_HOVER,
+            cursor="hand2",
+            relief="flat",
+            padx=18,
+            pady=6,
+        )
+        btn_file.pack(padx=12, pady=(0, 12), anchor="w")
+        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER))
         btn_file.bind("<Leave>", lambda e: btn_file.config(bg=self.accent_color))
 
-        self.filename_label = tk.Label(input_file_frame, text="", bg=self.frame_bg, fg=self.grey_text,
-                                    font=("Helvetica Neue", 9, "italic"), anchor="w")
-        self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
+        self.filename_label = tk.Label(
+            input_file_frame,
+            text="",
+            bg=self.frame_bg,
+            fg=self.grey_text,
+            font=FONT_SMALL_ITALIC,
+            anchor="w",
+        )
+        self.filename_label.pack(fill="x", padx=12, pady=(0, 12))
 
         # --- Прогресс ---
-        progress_frame = tk.Frame(frame, bg=self.bg_color)
+        progress_frame = tk.Frame(container, bg=self.bg_color)
         progress_frame.pack(fill="x", pady=(10, 10))
 
         style = ttk.Style()
-        style.configure("Accent.Horizontal.TProgressbar", troughcolor=self.bg_color,
-                        bordercolor=self.bg_color, background=self.accent_color,
-                        lightcolor=self.accent_color, darkcolor=self.accent_color)
+        style.configure(
+            "Accent.Horizontal.TProgressbar",
+            troughcolor=self.bg_color,
+            bordercolor=self.bg_color,
+            background=self.accent_color,
+            lightcolor=self.accent_color,
+            darkcolor=self.accent_color,
+        )
         self.progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, length=680,
                                         mode='determinate', style="Accent.Horizontal.TProgressbar")
         self.progress.pack(side="left", padx=(0, 10), pady=5)
@@ -90,16 +135,31 @@ class TileIntersectionApp:
 
         # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
-            frame, text="Начать обработку", state=tk.DISABLED, command=self.start_processing,
-            bg=self.accent_color, fg='white', font=self.font_bold, activebackground="#0051a8",
-            cursor="hand2", relief="flat", padx=25, pady=8
+            container,
+            text="Начать обработку",
+            state=tk.DISABLED,
+            command=self.start_processing,
+            bg=self.accent_color,
+            fg="white",
+            font=self.font_bold,
+            activebackground=ACCENT_HOVER,
+            cursor="hand2",
+            relief="flat",
+            padx=25,
+            pady=8,
         )
         self.btn_process.pack(pady=20)
         # Обеспечиваем белый цвет текста при наведении и уходе мыши
-        self.btn_process.bind("<Enter>", lambda e: self.btn_process.config(bg="#0051a8", fg='white'))
-        self.btn_process.bind("<Leave>", lambda e: self.btn_process.config(bg=self.accent_color, fg='white'))
+        self.btn_process.bind(
+            "<Enter>",
+            lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
+        )
+        self.btn_process.bind(
+            "<Leave>",
+            lambda e: self.btn_process.config(bg=self.accent_color, fg="white"),
+        )
 
-        self.result = tk.Label(frame, text="", fg="#1c1c1e", bg=self.bg_color,
+        self.result = tk.Label(container, text="", fg="#1c1c1e", bg=self.bg_color,
                             justify='left', wraplength=780, font=self.font_normal)
         self.result.pack(pady=10)
 
