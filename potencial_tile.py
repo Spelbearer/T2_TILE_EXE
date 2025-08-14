@@ -32,43 +32,6 @@ FONT_SMALL_ITALIC = (FONT_FAMILY, 9, "italic")
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
 
-class RoundedFrame(tk.Canvas):
-    """Canvas-based frame with rounded corners."""
-    def __init__(self, parent, bg=FRAME_BG, corner_radius=12, pad=2, **kwargs):
-        super().__init__(parent, bg=parent["bg"], highlightthickness=0, **kwargs)
-        self.corner_radius = corner_radius
-        self.pad = pad
-        self.bg_color = bg
-        # internal frame for child widgets
-        self.inner = tk.Frame(self, bg=bg)
-        self.create_window((pad, pad), window=self.inner, anchor="nw")
-        self.bind("<Configure>", self._draw)
-
-    def _draw(self, event=None):
-        self.delete("round")
-        w = self.winfo_width()
-        h = self.winfo_height()
-        r = self.corner_radius
-        if w > 0 and h > 0:
-            self._round_rect(self.pad, self.pad, w - self.pad, h - self.pad,
-                             r, fill=self.bg_color, outline="", tags=("round",))
-
-    def _round_rect(self, x1, y1, x2, y2, r, **kwargs):
-        points = [x1 + r, y1,
-                  x2 - r, y1,
-                  x2, y1,
-                  x2, y1 + r,
-                  x2, y2 - r,
-                  x2, y2,
-                  x2 - r, y2,
-                  x1 + r, y2,
-                  x1, y2,
-                  x1, y2 - r,
-                  x1, y1 + r,
-                  x1, y1]
-        return self.create_polygon(points, smooth=True, **kwargs)
-
-
 class TileIntersectionApp:
     def __init__(self, root):
         self.root = root
@@ -124,12 +87,12 @@ class TileIntersectionApp:
                                 fg=self.accent_color, font=self.font_bold)
         format_label.pack(anchor="w")
 
-        format_frame = RoundedFrame(container, bg=self.frame_bg, corner_radius=10, pad=10)
+        format_frame = tk.Frame(container, bg=self.frame_bg)
         format_frame.pack(fill="x", pady=(8, 20))
 
         self.input_format_var = tk.StringVar(value='WKT')
         format_options = ['WKT', 'LAT / LON']
-        self.format_combo = ttk.Combobox(format_frame.inner, textvariable=self.input_format_var, values=format_options,
+        self.format_combo = ttk.Combobox(format_frame, textvariable=self.input_format_var, values=format_options,
                                         state="readonly", width=17, font=self.font_normal)
         self.format_combo.pack(padx=12, pady=12, anchor='w')
         self.format_combo.current(0)
@@ -140,13 +103,13 @@ class TileIntersectionApp:
                                fg=self.accent_color, font=self.font_bold)
         input_label.pack(anchor="w")
 
-        input_file_frame = RoundedFrame(container, bg=self.frame_bg, corner_radius=10, pad=10)
+        input_file_frame = tk.Frame(container, bg=self.frame_bg)
         input_file_frame.pack(fill="x", pady=(8, 20))
 
         self.file_label_text = tk.StringVar()
         self.update_file_label_text()
         label_file_desc = tk.Label(
-            input_file_frame.inner,
+            input_file_frame,
             textvariable=self.file_label_text,
             bg=self.frame_bg,
             fg="#1c1c1e",
@@ -157,7 +120,7 @@ class TileIntersectionApp:
 
 
         btn_file = tk.Button(
-            input_file_frame.inner,
+            input_file_frame,
             text="Выбрать исходный файл",
             command=self.load_file,
             bg=self.accent_color,
@@ -178,7 +141,7 @@ class TileIntersectionApp:
         )
 
         self.filename_label = tk.Label(
-            input_file_frame.inner,
+            input_file_frame,
             text="",
             bg=self.frame_bg,
             fg=self.grey_text,
@@ -205,6 +168,10 @@ class TileIntersectionApp:
                                         mode='determinate', style="Accent.Horizontal.TProgressbar")
         self.progress.pack(side="left", padx=(0, 10), pady=5)
 
+        self.counter_var = tk.StringVar(value="")
+        self.counter_label = tk.Label(progress_frame, textvariable=self.counter_var, fg="#3a3a3c",
+                                    bg=self.bg_color, font=self.font_normal)
+        self.counter_label.pack(side="left", pady=5)
 
         # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
@@ -322,7 +289,7 @@ class TileIntersectionApp:
             return None
 
     def update_progress_ui(self):
-        """Обновление индикатора прогресса в главном потоке через after()"""
+        """Обновление прогресса и счетчика в главном потоке через after()"""
         with self.lock:
             current = self.current_row
             total = self.total_rows
@@ -330,6 +297,8 @@ class TileIntersectionApp:
         if total > 0:
             self.progress['maximum'] = total
             self.progress['value'] = current
+            percent = (current / total)
+            self.counter_var.set(f"tile_id: {current}/{total} ({percent:.0%})")
             self.root.update_idletasks()
 
         if current < total:
@@ -462,6 +431,7 @@ class TileIntersectionApp:
 
     def start_processing(self):
         self.btn_process.config(state=tk.DISABLED)
+        self.counter_var.set("Обработка...")
         self.progress.pack()
         self.progress['value'] = 0
         self.result.config(text="", fg="#2c3e50")
@@ -478,6 +448,7 @@ class TileIntersectionApp:
     def on_processing_finished(self, result):
         self.btn_process.config(state=tk.NORMAL)
         self.progress.pack_forget()
+        self.counter_var.set("")
         if result:
             output_path, final_count, found_rows, total_rows = result
             self.result.config(
