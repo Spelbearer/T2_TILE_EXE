@@ -1,11 +1,14 @@
 import sys
 
 from PyQt6 import QtWidgets, QtCore, QtGui
-import pandas as pd
+# import pandas as pd
+from pandas import isna, read_excel ,read_csv, concat, DataFrame, merge
 import os
 import re
 from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QGuiApplication
 
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
@@ -126,7 +129,7 @@ class ProcessingWorker(QtCore.QObject):
 
     def parse_position(self, position):
         try:
-            if isinstance(position, float) and pd.isna(position):
+            if isinstance(position, float) and isna(position):
                 return None, None
             wkt_match = WKT_POINT_RE.match(str(position))
             if wkt_match:
@@ -159,9 +162,9 @@ class ProcessingWorker(QtCore.QObject):
         # first sheet, while text-based formats use a semicolon-separated CSV
         # reader as before.
         if self.file_path.lower().endswith(('.xls', '.xlsx')):
-            df = pd.read_excel(self.file_path, sheet_name=0)
+            df = read_excel(self.file_path, sheet_name=0)
         else:
-            df = pd.read_csv(self.file_path, sep=';')
+            df = read_csv(self.file_path, sep=';')
 
         if fmt == 'WKT':
             if 'BS_POSITION' not in df.columns:
@@ -200,7 +203,7 @@ class ProcessingWorker(QtCore.QObject):
         chunk_size = 100_000
         found_rows = 0
         total_match_rows = 0
-        for chunk in pd.read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size, usecols=self.columns_needed):
+        for chunk in read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size, usecols=self.columns_needed):
             chunk['s2_cell_id_13'] = chunk['s2_cell_id_13'].astype(str).str.strip()
             filtered = chunk[(chunk['s2_cell_id_13'].isin(tile_ids_set))]
             found_rows += len(filtered)
@@ -209,14 +212,14 @@ class ProcessingWorker(QtCore.QObject):
                 matches.append(filtered)
 
         if matches:
-            df2_filtered = pd.concat(matches, ignore_index=True)
+            df2_filtered = concat(matches, ignore_index=True)
         else:
-            df2_filtered = pd.DataFrame(columns=self.columns_needed)
+            df2_filtered = DataFrame(columns=self.columns_needed)
 
         df['tile_id'] = df['tile_id'].astype(str).str.strip()
         df2_filtered['s2_cell_id_13'] = df2_filtered['s2_cell_id_13'].astype(str).str.strip()
 
-        merged = pd.merge(
+        merged = merge(
             df,
             df2_filtered,
             how='left',
@@ -235,7 +238,7 @@ class ProcessingWorker(QtCore.QObject):
 
         fn1 = os.path.basename(self.file_path)
         fn2 = os.path.basename(self.match_file_path)
-        result_name = f"MERGED_{fn1}_BY_{fn2}"
+        result_name = f"Потенциал"
         out_path = os.path.join(self.output_dir, result_name)
         if not out_path.lower().endswith('.xlsx'):
             out_path += '.xlsx'
@@ -351,8 +354,6 @@ class TileIntersectionApp(QtWidgets.QWidget):
         if result:
             out_path, final_count, found_rows, total_rows = result
             self.result_label.setText(
-                f"Готово!\nВ объединённой выгрузке {final_count} строк.\n"
-                f"Найдено соответствий во втором файле: {found_rows} из {total_rows}.\n"
                 f"Результат сохранён в:\n{out_path}"
             )
             QtWidgets.QMessageBox.information(self, "Готово", f"Файл сохранён: {out_path}")
@@ -367,15 +368,12 @@ class TileIntersectionApp(QtWidgets.QWidget):
 if __name__ == "__main__":
     dark = "--dark" in sys.argv
     # Enable High DPI pixmaps if supported by the current Qt build.
-    attr = getattr(QtCore.Qt.ApplicationAttribute, "AA_UseHighDpiPixmaps", None)
-    if attr is not None:
-        QtWidgets.QApplication.setAttribute(attr)
+    os.environ.setdefault("QT_ENABLE_HIGHDPI_SCALING", "1")
+    os.environ.setdefault("QT_SCALE_FACTOR_ROUNDING_POLICY", "PassThrough")
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+    Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+)
     app = QtWidgets.QApplication(sys.argv)
-
-    app = QtWidgets.QApplication(sys.argv)
-    QtWidgets.QApplication.setAttribute(
-        QtCore.Qt.ApplicationAttribute.AA_UseHighDpiPixmaps
-    )
 
     set_app_font(app)
     apply_theme(app, dark)
