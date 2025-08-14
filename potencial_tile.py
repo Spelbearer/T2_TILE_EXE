@@ -42,7 +42,7 @@ def build_stylesheet(theme: dict) -> str:
         background: {theme['window_bg']};
         color: {theme['text']};
     }}
-    QGroupBox#formatBox, QGroupBox#uploadBox {{
+    QGroupBox#formatBox, QGroupBox#uploadBox, QGroupBox#outputBox {{
         background: {theme['surface']};
         border: 1px solid {theme['border']};
         border-radius: 8px;
@@ -288,6 +288,18 @@ class TileIntersectionApp(QtWidgets.QWidget):
         ub_layout.addWidget(self.btn_browse)
         layout.addWidget(self.upload_box)
 
+        self.output_box = QtWidgets.QGroupBox("3. Папка для сохранения")
+        self.output_box.setObjectName("outputBox")
+        ob_layout = QtWidgets.QHBoxLayout(self.output_box)
+        self.output_line = QtWidgets.QLineEdit()
+        self.output_line.setReadOnly(True)
+        self.output_line.setText(self.output_dir)
+        self.btn_browse_output = QtWidgets.QPushButton("Выбрать папку…")
+        self.btn_browse_output.clicked.connect(self.select_output_dir)
+        ob_layout.addWidget(self.output_line)
+        ob_layout.addWidget(self.btn_browse_output)
+        layout.addWidget(self.output_box)
+
         self.btn_process = QtWidgets.QPushButton("Обработать")
         self.btn_process.clicked.connect(self.start_processing)
         layout.addWidget(self.btn_process)
@@ -300,7 +312,7 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.result_label.setWordWrap(True)
         layout.addWidget(self.result_label)
 
-        for box in (self.format_box, self.upload_box):
+        for box in (self.format_box, self.upload_box, self.output_box):
             effect = QtWidgets.QGraphicsDropShadowEffect(
                 blurRadius=12,
                 xOffset=0,
@@ -322,6 +334,16 @@ class TileIntersectionApp(QtWidgets.QWidget):
         if path:
             self.file_path = path
             self.file_line.setText(path)
+
+    def select_output_dir(self):
+        path = QtWidgets.QFileDialog.getExistingDirectory(
+            self,
+            "Выберите папку",
+            self.output_dir,
+        )
+        if path:
+            self.output_dir = path
+            self.output_line.setText(path)
 
     def start_processing(self):
         if not self.file_path:
