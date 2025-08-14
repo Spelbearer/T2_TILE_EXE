@@ -360,6 +360,12 @@ if __name__ == "__main__":
     if attr is not None:
         QtWidgets.QApplication.setAttribute(attr)
     app = QtWidgets.QApplication(sys.argv)
+
+    app = QtWidgets.QApplication(sys.argv)
+    QtWidgets.QApplication.setAttribute(
+        QtCore.Qt.ApplicationAttribute.AA_UseHighDpiPixmaps
+    )
+
     set_app_font(app)
     apply_theme(app, dark)
     window = TileIntersectionApp()
