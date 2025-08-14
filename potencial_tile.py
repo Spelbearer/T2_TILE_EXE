@@ -111,13 +111,15 @@ class TileIntersectionApp:
 
         self.file_label_text = tk.StringVar()
         self.update_file_label_text()
-        label_file_desc = tk.Label(input_file_frame, textvariable=self.file_label_text, bg=self.frame_bg,
-
-                                   fg="#1c1c1e", font=self.font_normal, anchor="w")
+        label_file_desc = tk.Label(
+            input_file_frame,
+            textvariable=self.file_label_text,
+            bg=self.frame_bg,
+            fg="#1c1c1e",
+            font=self.font_normal,
+            anchor="w",
+        )
         label_file_desc.pack(fill="x", padx=12, pady=(12, 4))
-
-                                fg="#1c1c1e", font=self.font_normal, anchor="w")
-        label_file_desc.pack(fill="x", padx=10, pady=(10, 3))
 
 
         btn_file = tk.Button(
@@ -127,54 +129,29 @@ class TileIntersectionApp:
             bg=self.accent_color,
             fg="white",
             font=self.font_bold,
-
-            activebackground=ACCENT_HOVER,
+            activebackground=theme.ACCENT_HOVER,
             cursor="hand2",
             relief="flat",
             padx=18,
             pady=6,
         )
         btn_file.pack(padx=12, pady=(0, 12), anchor="w")
-        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER))
-
-
-            activebackground=ACCENT_HOVER,
-
-            activebackground=theme.ACCENT_HOVER,
-
-            cursor="hand2",
-            relief="flat",
-            padx=15,
-            pady=5,
+        btn_file.bind(
+            "<Enter>", lambda e: btn_file.config(bg=theme.ACCENT_HOVER)
         )
-        btn_file.pack(padx=10, pady=(0, 10), anchor="w")
-
-        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER))
-
-        btn_file.bind("<Enter>", lambda e: btn_file.config(bg=theme.ACCENT_HOVER))
-
-
-        btn_file.bind("<Leave>", lambda e: btn_file.config(bg=self.accent_color))
+        btn_file.bind(
+            "<Leave>", lambda e: btn_file.config(bg=self.accent_color)
+        )
 
         self.filename_label = tk.Label(
             input_file_frame,
             text="",
             bg=self.frame_bg,
             fg=self.grey_text,
-
-            font=FONT_SMALL_ITALIC,
+            font=theme.FONT_SMALL_ITALIC,
             anchor="w",
         )
         self.filename_label.pack(fill="x", padx=12, pady=(0, 12))
-
-
-            font=FONT_SMALL_ITALIC,
-
-            font=theme.FONT_SMALL_ITALIC,
-
-            anchor="w",
-        )
-        self.filename_label.pack(fill="x", padx=10, pady=(0, 10))
 
 
         # --- Прогресс ---
@@ -201,26 +178,14 @@ class TileIntersectionApp:
 
         # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
-
             container,
-
-            frame,
-
             text="Начать обработку",
             state=tk.DISABLED,
             command=self.start_processing,
             bg=self.accent_color,
             fg="white",
             font=self.font_bold,
-
-            activebackground=ACCENT_HOVER,
-
-
-            activebackground=ACCENT_HOVER,
-
             activebackground=theme.ACCENT_HOVER,
-
-
             cursor="hand2",
             relief="flat",
             padx=25,
@@ -230,15 +195,7 @@ class TileIntersectionApp:
         # Обеспечиваем белый цвет текста при наведении и уходе мыши
         self.btn_process.bind(
             "<Enter>",
-
-            lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
-
-
-            lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
-
             lambda e: self.btn_process.config(bg=theme.ACCENT_HOVER, fg="white"),
-
-
         )
         self.btn_process.bind(
             "<Leave>",
