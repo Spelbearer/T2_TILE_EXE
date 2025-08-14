@@ -355,10 +355,17 @@ class TileIntersectionApp(QtWidgets.QWidget):
 
 if __name__ == "__main__":
     dark = "--dark" in sys.argv
+    # Enable High DPI pixmaps if supported by the current Qt build.
+    attr = getattr(QtCore.Qt.ApplicationAttribute, "AA_UseHighDpiPixmaps", None)
+    if attr is not None:
+        QtWidgets.QApplication.setAttribute(attr)
+    app = QtWidgets.QApplication(sys.argv)
+
     app = QtWidgets.QApplication(sys.argv)
     QtWidgets.QApplication.setAttribute(
         QtCore.Qt.ApplicationAttribute.AA_UseHighDpiPixmaps
     )
+
     set_app_font(app)
     apply_theme(app, dark)
     window = TileIntersectionApp()
