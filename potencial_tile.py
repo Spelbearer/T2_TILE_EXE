@@ -1,218 +1,23 @@
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from PyQt6 import QtWidgets, QtCore
 import pandas as pd
 import os
 import re
-import threading
-import time
 from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
 
-# Centralised theme constants for a pastel Apple-like interface
-BG_COLOR = "#f5f5f7"  # light grey background
-FRAME_BG = "white"
-ACCENT_COLOR = "#5ac8fa"  # pastel blue accent
-ACCENT_HOVER = "#0a84ff"  # stronger blue when hovering
-SUCCESS_COLOR = "#34c759"  # green for success messages
-ERROR_COLOR = "#ff3b30"  # red for error messages
-GREY_TEXT = "#8e8e93"  # system grey
-
-FONT_FAMILY = "SF Pro Text"
-
-FONT_TITLE = (FONT_FAMILY, 24, "bold")
-FONT_BOLD = (FONT_FAMILY, 14, "bold")
-FONT_NORMAL = (FONT_FAMILY, 12)
-FONT_SMALL_ITALIC = (FONT_FAMILY, 10, "italic")
-
-FONT_BOLD = (FONT_FAMILY, 11, "bold")
-FONT_NORMAL = (FONT_FAMILY, 10)
-FONT_SMALL_ITALIC = (FONT_FAMILY, 9, "italic")
-
-
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
 
+class ProcessingWorker(QtCore.QObject):
+    progress = QtCore.pyqtSignal(int, int)
+    finished = QtCore.pyqtSignal(object)
+    error = QtCore.pyqtSignal(str)
 
-class TileIntersectionApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Определение тайлов")
-        self.root.geometry("830x560")
-        self.root.resizable(False, False)
-
-        self.root.configure(bg=BG_COLOR)
-
-
-        self.root.configure(bg=BG_COLOR)
-
-        self.root.configure(bg=BG_COLOR)
-
-
-
-        self.file_path = None
-        self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
-        self.input_format = 'WKT'
-
-
-        # Цвета и шрифты вынесены в отдельный модуль theme
-
-
-        self.bg_color = BG_COLOR
-        self.frame_bg = FRAME_BG
-        self.font_bold = FONT_BOLD
-        self.font_normal = FONT_NORMAL
-        self.accent_color = ACCENT_COLOR
-        self.success_color = SUCCESS_COLOR
-        self.error_color = ERROR_COLOR
-        self.grey_text = GREY_TEXT
-
-
-        container = tk.Frame(self.root, bg=self.bg_color)
-        container.pack(fill="both", expand=True, padx=40, pady=30)
-
-        self.bg_color = BG_COLOR
-        self.frame_bg = FRAME_BG
-        self.font_bold = FONT_BOLD
-        self.font_normal = FONT_NORMAL
-        self.accent_color = ACCENT_COLOR
-        self.success_color = SUCCESS_COLOR
-        self.error_color = ERROR_COLOR
-        self.grey_text = GREY_TEXT
-
-        header = tk.Label(container, text="Определение тайлов", bg=self.bg_color,
-                          fg="#1c1c1e", font=FONT_TITLE)
-        header.pack(anchor="w", pady=(0, 20))
-
-        # --- Блок выбора формата ---
-        format_label = tk.Label(container, text="1. Выберите формат входных данных", bg=self.bg_color,
-                                fg=self.accent_color, font=self.font_bold)
-        format_label.pack(anchor="w")
-
-        format_frame = tk.Frame(container, bg=self.frame_bg)
-        format_frame.pack(fill="x", pady=(8, 20))
-
-        self.input_format_var = tk.StringVar(value='WKT')
-        format_options = ['WKT', 'LAT / LON']
-        self.format_combo = ttk.Combobox(format_frame, textvariable=self.input_format_var, values=format_options,
-                                        state="readonly", width=17, font=self.font_normal)
-        self.format_combo.pack(padx=12, pady=12, anchor='w')
-        self.format_combo.current(0)
-        self.format_combo.bind("<<ComboboxSelected>>", lambda e: self.on_format_change())
-
-        # --- Загрузка исходного файла ---
-        input_label = tk.Label(container, text="2. Загрузка исходного файла", bg=self.bg_color,
-                               fg=self.accent_color, font=self.font_bold)
-        input_label.pack(anchor="w")
-
-        input_file_frame = tk.Frame(container, bg=self.frame_bg)
-        input_file_frame.pack(fill="x", pady=(8, 20))
-
-        self.file_label_text = tk.StringVar()
-        self.update_file_label_text()
-        label_file_desc = tk.Label(
-            input_file_frame,
-            textvariable=self.file_label_text,
-            bg=self.frame_bg,
-            fg="#1c1c1e",
-            font=self.font_normal,
-            anchor="w",
-        )
-        label_file_desc.pack(fill="x", padx=12, pady=(12, 4))
-
-
-        btn_file = tk.Button(
-            input_file_frame,
-            text="Выбрать исходный файл",
-            command=self.load_file,
-            bg=self.accent_color,
-            fg="white",
-            font=self.font_bold,
-            activebackground=ACCENT_HOVER,
-            cursor="hand2",
-            relief="flat",
-            padx=18,
-            pady=6,
-        )
-        btn_file.pack(padx=12, pady=(0, 12), anchor="w")
-        btn_file.bind(
-            "<Enter>", lambda e: btn_file.config(bg=ACCENT_HOVER)
-        )
-        btn_file.bind(
-            "<Leave>", lambda e: btn_file.config(bg=self.accent_color)
-        )
-
-        self.filename_label = tk.Label(
-            input_file_frame,
-            text="",
-            bg=self.frame_bg,
-            fg=self.grey_text,
-            font=FONT_SMALL_ITALIC,
-            anchor="w",
-        )
-        self.filename_label.pack(fill="x", padx=12, pady=(0, 12))
-
-
-        # --- Прогресс ---
-        progress_frame = tk.Frame(container, bg=self.bg_color)
-        progress_frame.pack(fill="x", pady=(10, 10))
-
-        style = ttk.Style()
-        style.configure(
-            "Accent.Horizontal.TProgressbar",
-            troughcolor=self.bg_color,
-            bordercolor=self.bg_color,
-            background=self.accent_color,
-            lightcolor=self.accent_color,
-            darkcolor=self.accent_color,
-        )
-        self.progress = ttk.Progressbar(progress_frame, orient=tk.HORIZONTAL, length=680,
-                                        mode='determinate', style="Accent.Horizontal.TProgressbar")
-        self.progress.pack(side="left", padx=(0, 10), pady=5)
-
-        self.counter_var = tk.StringVar(value="")
-        self.counter_label = tk.Label(progress_frame, textvariable=self.counter_var, fg="#3a3a3c",
-                                    bg=self.bg_color, font=self.font_normal)
-        self.counter_label.pack(side="left", pady=5)
-
-        # --- Кнопка запуска обработки ---
-        self.btn_process = tk.Button(
-            container,
-            text="Начать обработку",
-            state=tk.DISABLED,
-            command=self.start_processing,
-            bg=self.accent_color,
-            fg="white",
-            font=self.font_bold,
-            activebackground=ACCENT_HOVER,
-            cursor="hand2",
-            relief="flat",
-            padx=25,
-            pady=8,
-        )
-        self.btn_process.pack(pady=20)
-        # Обеспечиваем белый цвет текста при наведении и уходе мыши
-        self.btn_process.bind(
-            "<Enter>",
-            lambda e: self.btn_process.config(bg=ACCENT_HOVER, fg="white"),
-        )
-        self.btn_process.bind(
-            "<Leave>",
-            lambda e: self.btn_process.config(bg=self.accent_color, fg="white"),
-        )
-
-        self.result = tk.Label(container, text="", fg="#1c1c1e", bg=self.bg_color,
-                            justify='left', wraplength=780, font=self.font_normal)
-        self.result.pack(pady=10)
-
-        self.output_dir = os.path.expanduser(r"~/Downloads/Tile_Results")
-        os.makedirs(self.output_dir, exist_ok=True)
-
-        # Для обновления прогресса из потока
-        self.total_rows = 0
-        self.current_row = 0
-        self.last_update_time = 0
-        self.lock = threading.Lock()
-
-        # Столбцы, которые нужно тянуть из справочника
+    def __init__(self, file_path, match_file_path, input_format, output_dir, parent=None):
+        super().__init__(parent)
+        self.file_path = file_path
+        self.match_file_path = match_file_path
+        self.input_format = input_format
+        self.output_dir = output_dir
         self.columns_needed = [
             "s2_cell_id_13",
             "geounit_name",
@@ -229,41 +34,6 @@ class TileIntersectionApp:
             "SAVE_potential",
         ]
 
-    def on_format_change(self):
-        self.input_format = self.format_combo.get()
-        self.update_file_label_text()
-        self.filename_label.config(text="")
-        self.file_path = None
-        self.check_all_files()
-
-    def update_file_label_text(self):
-        fmt = self.input_format_var.get()
-        if fmt == 'WKT':
-            text = "2. Загрузите исходный файл (обязательна колонка BS_POSITION в формате WKT):"
-        else:
-            text = "2. Загрузите исходный файл (обязательны колонки LATITUDE и LONGITUDE):"
-        self.file_label_text.set(text)
-
-    def load_file(self):
-        file_path = filedialog.askopenfilename(
-            filetypes=[('Text files', '*.txt'), ('CSV files', '*.csv'), ('All files', '*.*')],
-            title="Выберите исходный файл"
-        )
-        if file_path:
-            self.file_path = file_path
-            self.input_format = self.format_combo.get()
-            self.filename_label.config(
-                text=f"{os.path.basename(self.file_path)} (формат: {self.input_format})",
-                fg="green"
-            )
-        self.check_all_files()
-
-    def check_all_files(self):
-        if self.file_path:
-            self.btn_process.config(state=tk.NORMAL)
-        else:
-            self.btn_process.config(state=tk.DISABLED)
-
     def parse_position(self, position):
         try:
             if isinstance(position, float) and pd.isna(position):
@@ -273,200 +43,233 @@ class TileIntersectionApp:
                 lon = float(wkt_match.group(1))
                 lat = float(wkt_match.group(2))
                 return lat, lon
-            else:
-                raise ValueError(f"Неизвестный формат WKT: {position}")
-        except Exception as e:
-            print(f"Ошибка парсинга WKT: {position} --- {e}")
-            return None, None
+        except Exception:
+            pass
+        return None, None
 
     def get_tile_id(self, lat, lon):
+        if lat is None or lon is None:
+            return None
         try:
-            if lat is None or lon is None:
-                return None
             return str(CellId.from_lat_lng(LatLng.from_degrees(lat, lon)).parent(13).id())
-        except Exception as e:
-            print(f"Ошибка определения тайла ({lat}, {lon}) --- {e}")
+        except Exception:
             return None
 
-    def update_progress_ui(self):
-        """Обновление прогресса и счетчика в главном потоке через after()"""
-        with self.lock:
-            current = self.current_row
-            total = self.total_rows
-
-        if total > 0:
-            self.progress['maximum'] = total
-            self.progress['value'] = current
-            percent = (current / total)
-            self.counter_var.set(f"tile_id: {current}/{total} ({percent:.0%})")
-            self.root.update_idletasks()
-
-        if current < total:
-            self.root.after(500, self.update_progress_ui)
+    @QtCore.pyqtSlot()
+    def run(self):
+        try:
+            result = self.process_file()
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
 
     def process_file(self):
-        """Обработка файла в отдельном потоке"""
-        try:
-            fmt = getattr(self, "input_format", "WKT")
-            print(f"Используем формат: {fmt}")
+        fmt = self.input_format
+        df = pd.read_csv(self.file_path, sep=';')
 
-            # Читаем исходный файл
-            df = pd.read_csv(self.file_path, sep=';')
+        if fmt == 'WKT':
+            if 'BS_POSITION' not in df.columns:
+                raise ValueError("Нет колонки 'BS_POSITION'")
+        elif fmt == 'LAT / LON':
+            if 'LATITUDE' not in df.columns or 'LONGITUDE' not in df.columns:
+                raise ValueError("Требуются колонки 'LATITUDE' и 'LONGITUDE'")
 
-            if fmt == 'WKT':
-                if 'BS_POSITION' not in df.columns:
-                    self.show_error_threadsafe("Нет колонки 'BS_POSITION'")
+            def to_wkt(lat, lon):
+                try:
+                    lat_f = float(str(lat).replace(',', '.'))
+                    lon_f = float(str(lon).replace(',', '.'))
+                    return f"POINT ({lon_f} {lat_f})"
+                except Exception:
                     return None
-            elif fmt == 'LAT / LON':
-                if 'LATITUDE' not in df.columns or 'LONGITUDE' not in df.columns:
-                    self.show_error_threadsafe("Требуются колонки 'LATITUDE' и 'LONGITUDE' для формата LAT / LON")
-                    return None
 
-                def to_wkt(lat, lon):
-                    try:
-                        lat_f = float(str(lat).replace(',', '.'))
-                        lon_f = float(str(lon).replace(',', '.'))
-                        return f"POINT ({lon_f} {lat_f})"
-                    except Exception:
-                        return None
+            df['BS_POSITION'] = df.apply(lambda r: to_wkt(r['LATITUDE'], r['LONGITUDE']), axis=1)
+        else:
+            raise ValueError(f"Неподдерживаемый формат: {fmt}")
 
-                df['BS_POSITION'] = df.apply(
-                    lambda row: to_wkt(row['LATITUDE'], row['LONGITUDE']), axis=1
-                )
-            else:
-                self.show_error_threadsafe(f"Неподдерживаемый формат: {fmt}")
-                return None
+        total_rows = len(df)
+        tile_ids = []
 
-            with self.lock:
-                self.total_rows = len(df)
-                self.current_row = 0
+        for i, row in enumerate(df.itertuples(), 1):
+            position = getattr(row, 'BS_POSITION', None)
+            lat, lon = self.parse_position(position)
+            tile_id = self.get_tile_id(lat, lon)
+            tile_ids.append(tile_id)
+            if i % 100 == 0 or i == total_rows:
+                self.progress.emit(i, total_rows)
 
-            self.progress.pack()
-            tile_ids = []
+        df['tile_id'] = tile_ids
+        tile_ids_set = set(df['tile_id'].astype(str).str.strip())
 
-            for i, row in enumerate(df.itertuples(), 1):
-                position = getattr(row, 'BS_POSITION', None)
-                lat, lon = self.parse_position(position)
-                tile_id = self.get_tile_id(lat, lon)
-                tile_ids.append(tile_id)
+        matches = []
+        chunk_size = 100_000
+        found_rows = 0
+        total_match_rows = 0
+        for chunk in pd.read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size, usecols=self.columns_needed):
+            chunk['s2_cell_id_13'] = chunk['s2_cell_id_13'].astype(str).str.strip()
+            filtered = chunk[(chunk['s2_cell_id_13'].isin(tile_ids_set))]
+            found_rows += len(filtered)
+            total_match_rows += len(chunk)
+            if not filtered.empty:
+                matches.append(filtered)
 
-                with self.lock:
-                    self.current_row = i
+        if matches:
+            df2_filtered = pd.concat(matches, ignore_index=True)
+        else:
+            df2_filtered = pd.DataFrame(columns=self.columns_needed)
 
-                now = time.time()
-                if now - self.last_update_time > 0.5 or i == self.total_rows:
-                    self.last_update_time = now
+        df['tile_id'] = df['tile_id'].astype(str).str.strip()
+        df2_filtered['s2_cell_id_13'] = df2_filtered['s2_cell_id_13'].astype(str).str.strip()
 
-            df['tile_id'] = tile_ids
-            tile_ids_set = set(df['tile_id'].astype(str).str.strip())
+        merged = pd.merge(
+            df,
+            df2_filtered,
+            how='left',
+            left_on='tile_id',
+            right_on='s2_cell_id_13',
+            suffixes=('', '_spr')
+        )
 
-            # Обработка справочника с фильтрацией по оператору Tele2
-            matches = []
-            chunk_size = 100_000
-            found_rows = 0
-            total_rows = 0
+        if 'tile_id' in merged.columns:
+            merged.drop(columns=['tile_id'], inplace=True)
 
-            for chunk in pd.read_csv(self.match_file_path, sep=';', dtype=str, chunksize=chunk_size, usecols=self.columns_needed):
-                chunk['s2_cell_id_13'] = chunk['s2_cell_id_13'].astype(str).str.strip()
-                # Фильтрация по tile_id
-                filtered = chunk[(chunk['s2_cell_id_13'].isin(tile_ids_set))]
-                found_rows += len(filtered)
-                total_rows += len(chunk)
-                if not filtered.empty:
-                    matches.append(filtered)
+        if fmt == 'LAT / LON':
+            for col in ['LATITUDE', 'LONGITUDE']:
+                if col in merged.columns:
+                    merged.drop(columns=[col], inplace=True)
 
-            if matches:
-                df2_filtered = pd.concat(matches, ignore_index=True)
-            else:
-                df2_filtered = pd.DataFrame(columns=self.columns_needed)
+        fn1 = os.path.basename(self.file_path)
+        fn2 = os.path.basename(self.match_file_path)
+        result_name = f"MERGED_{fn1}_BY_{fn2}"
+        out_path = os.path.join(self.output_dir, result_name)
+        if not out_path.lower().endswith('.xlsx'):
+            out_path += '.xlsx'
 
-            df['tile_id'] = df['tile_id'].astype(str).str.strip()
-            df2_filtered['s2_cell_id_13'] = df2_filtered['s2_cell_id_13'].astype(str).str.strip()
+        merged.to_excel(out_path, index=False)
+        wb = load_workbook(out_path)
+        ws = wb.active
+        ws.auto_filter.ref = ws.dimensions
+        wb.save(out_path)
 
-            merged = pd.merge(
-                df,
-                df2_filtered,
-                how='left',
-                left_on='tile_id',
-                right_on='s2_cell_id_13',
-                suffixes=('', '_spr')
-            )
+        return out_path, len(merged), found_rows, total_match_rows
 
-            if 'tile_id' in merged.columns:
-                merged.drop(columns=['tile_id'], inplace=True)
+class TileIntersectionApp(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Определение тайлов")
+        self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
+        self.file_path = None
+        self.input_format = 'WKT'
+        self.output_dir = os.getcwd()
+        self.init_ui()
 
-            if fmt == 'LAT / LON':
-                for col in ['LATITUDE', 'LONGITUDE']:
-                    if col in merged.columns:
-                        merged.drop(columns=[col], inplace=True)
+    def init_ui(self):
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
-            fn1 = os.path.basename(self.file_path)
-            fn2 = os.path.basename(self.match_file_path)
-            result_name = f"MERGED_{fn1}_BY_{fn2}"
-            out_path = os.path.join(self.output_dir, result_name)
-            if not out_path.lower().endswith('.xlsx'):
-                out_path += '.xlsx'
+        self.format_box = QtWidgets.QGroupBox("1. Выберите формат входных данных")
+        self.format_box.setObjectName("formatBox")
+        fb_layout = QtWidgets.QVBoxLayout(self.format_box)
+        self.format_combo = QtWidgets.QComboBox()
+        self.format_combo.addItems(["WKT", "LAT / LON"])
+        self.format_combo.currentIndexChanged.connect(self.on_format_change)
+        fb_layout.addWidget(self.format_combo)
+        layout.addWidget(self.format_box)
 
-            # Сохраняем в Excel
-            merged.to_excel(out_path, index=False)
+        self.upload_box = QtWidgets.QGroupBox("2. Загрузка исходного файла")
+        self.upload_box.setObjectName("uploadBox")
+        ub_layout = QtWidgets.QHBoxLayout(self.upload_box)
+        self.file_line = QtWidgets.QLineEdit()
+        self.file_line.setReadOnly(True)
+        self.btn_browse = QtWidgets.QPushButton("Выбрать файл…")
+        self.btn_browse.clicked.connect(self.select_file)
+        ub_layout.addWidget(self.file_line)
+        ub_layout.addWidget(self.btn_browse)
+        layout.addWidget(self.upload_box)
 
-            # Загружаем в openpyxl для установки фильтра (автофильтр на всю таблицу)
-            wb = load_workbook(out_path)
-            ws = wb.active
+        self.btn_process = QtWidgets.QPushButton("Обработать")
+        self.btn_process.clicked.connect(self.start_processing)
+        layout.addWidget(self.btn_process)
 
-            # Устанавливаем автофильтр на весь диапазон с данными
-            ws.auto_filter.ref = ws.dimensions
+        self.progress = QtWidgets.QProgressBar()
+        self.progress.setVisible(False)
+        layout.addWidget(self.progress)
 
-            wb.save(out_path)
+        self.result_label = QtWidgets.QLabel()
+        self.result_label.setWordWrap(True)
+        layout.addWidget(self.result_label)
 
-            return out_path, len(merged), found_rows, total_rows
+        self.setStyleSheet(
+            """
+            QGroupBox#formatBox, QGroupBox#uploadBox {
+                border: 1px solid #D0D5DD;
+                border-radius: 12px;
+                margin-top: 8px;
+                background: #FFFFFF;
+            }
+            QGroupBox#formatBox::title, QGroupBox#uploadBox::title {
+                subcontrol-origin: margin;
+                left: 12px;
+                padding: 0 4px;
+            }
+            """
+        )
 
-        except Exception as e:
-            self.show_error_threadsafe(str(e))
-            return None
+    def on_format_change(self, index):
+        self.input_format = self.format_combo.currentText()
 
-    def show_error_threadsafe(self, message):
-        """Вывод ошибки из другого потока с применением after"""
-        self.root.after(0, lambda: messagebox.showerror("Ошибка", message))
+    def select_file(self):
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Выберите файл", "", "Text/Excel Files (*.txt *.csv *.xlsx);;All Files (*)")
+        if path:
+            self.file_path = path
+            self.file_line.setText(path)
 
     def start_processing(self):
-        self.btn_process.config(state=tk.DISABLED)
-        self.counter_var.set("Обработка...")
-        self.progress.pack()
-        self.progress['value'] = 0
-        self.result.config(text="", fg="#2c3e50")
+        if not self.file_path:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Выберите файл")
+            return
+        self.btn_process.setEnabled(False)
+        self.progress.setVisible(True)
+        self.progress.setValue(0)
+        self.result_label.clear()
 
-        self.last_update_time = 0
-        self.root.after(100, self.update_progress_ui)
+        self.thread = QtCore.QThread(self)
+        self.worker = ProcessingWorker(self.file_path, self.match_file_path, self.input_format, self.output_dir)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.progress.connect(self.on_progress)
+        self.worker.finished.connect(self.on_finished)
+        self.worker.error.connect(self.on_error)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.thread.start()
 
-        threading.Thread(target=self.run_processing, daemon=True).start()
+    def on_progress(self, current, total):
+        self.progress.setMaximum(total)
+        self.progress.setValue(current)
 
-    def run_processing(self):
-        result = self.process_file()
-        self.root.after(0, self.on_processing_finished, result)
-
-    def on_processing_finished(self, result):
-        self.btn_process.config(state=tk.NORMAL)
-        self.progress.pack_forget()
-        self.counter_var.set("")
+    def on_finished(self, result):
+        self.btn_process.setEnabled(True)
+        self.progress.setVisible(False)
         if result:
-            output_path, final_count, found_rows, total_rows = result
-            self.result.config(
-                text=f"Готово!\n"
-                     f"В объединённой выгрузке {final_count} строк.\n"
-                     f"Найдено соответствий во втором файле: {found_rows} из {total_rows}.\n"
-                     f"Результат сохранён в:\n{output_path}",
-                fg=self.success_color
+            out_path, final_count, found_rows, total_rows = result
+            self.result_label.setText(
+                f"Готово!\nВ объединённой выгрузке {final_count} строк.\n"
+                f"Найдено соответствий во втором файле: {found_rows} из {total_rows}.\n"
+                f"Результат сохранён в:\n{out_path}"
             )
-            try:
-                os.startfile(self.output_dir)
-            except Exception:
-                pass
+            QtWidgets.QMessageBox.information(self, "Готово", f"Файл сохранён: {out_path}")
         else:
-            self.result.config(text="Ошибка во время обработки.", fg=self.error_color)
+            self.result_label.setText("Ошибка во время обработки.")
 
+    def on_error(self, message):
+        self.btn_process.setEnabled(True)
+        self.progress.setVisible(False)
+        QtWidgets.QMessageBox.critical(self, "Ошибка", message)
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = TileIntersectionApp(root)
-    root.mainloop()
+    app = QtWidgets.QApplication([])
+    window = TileIntersectionApp()
+    window.show()
+    app.exec()
