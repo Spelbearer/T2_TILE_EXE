@@ -8,14 +8,14 @@ import time
 from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
 
-# Centralised theme constants for a pastel Apple-like interface
-BG_COLOR = "#f5f5f7"  # light grey background
-FRAME_BG = "white"
-ACCENT_COLOR = "#5ac8fa"  # pastel blue accent
-ACCENT_HOVER = "#0a84ff"  # stronger blue when hovering
-SUCCESS_COLOR = "#34c759"  # green for success messages
-ERROR_COLOR = "#ff3b30"  # red for error messages
-GREY_TEXT = "#8e8e93"  # system grey
+# Centralised theme constants with higher contrast for a white interface
+BG_COLOR = "#ffffff"  # pure white background
+FRAME_BG = "#f0f0f0"  # light grey blocks for contrast
+ACCENT_COLOR = "#0078d7"  # vivid blue accent
+ACCENT_HOVER = "#005a9e"  # darker blue on hover
+SUCCESS_COLOR = "#28a745"  # vivid green for success messages
+ERROR_COLOR = "#dc3545"  # vivid red for error messages
+GREY_TEXT = "#6e6e73"  # darker system grey
 
 FONT_FAMILY = "SF Pro Text"
 
@@ -30,6 +30,38 @@ FONT_SMALL_ITALIC = (FONT_FAMILY, 9, "italic")
 
 
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
+
+
+# Helper widget with rounded corners for section blocks
+class RoundedFrame(tk.Canvas):
+    def __init__(self, parent, bg_color=FRAME_BG, radius=12, **kwargs):
+        super().__init__(parent, bg=parent["bg"], highlightthickness=0, **kwargs)
+        self.radius = radius
+        self.bg_color = bg_color
+        self.inner = tk.Frame(self, bg=bg_color)
+        self.inner_window = self.create_window((0, 0), window=self.inner, anchor="nw")
+        self.bind("<Configure>", self._resize)
+
+    def _resize(self, event=None):
+        w, h = self.winfo_width(), self.winfo_height()
+        r = self.radius
+        self.delete("round")
+        points = [
+            r, 0,
+            w - r, 0,
+            w, 0,
+            w, r,
+            w, h - r,
+            w, h,
+            w - r, h,
+            r, h,
+            0, h,
+            0, h - r,
+            0, r,
+            0, 0,
+        ]
+        self.create_polygon(points, smooth=True, fill=self.bg_color, outline="", tags="round")
+        self.itemconfig(self.inner_window, width=w, height=h)
 
 
 class TileIntersectionApp:
@@ -86,9 +118,9 @@ class TileIntersectionApp:
         format_label = tk.Label(container, text="1. Выберите формат входных данных", bg=self.bg_color,
                                 fg=self.accent_color, font=self.font_bold)
         format_label.pack(anchor="w")
-
-        format_frame = tk.Frame(container, bg=self.frame_bg)
-        format_frame.pack(fill="x", pady=(8, 20))
+        format_frame_outer = RoundedFrame(container, bg_color=self.frame_bg, radius=12)
+        format_frame_outer.pack(fill="x", pady=(8, 20))
+        format_frame = format_frame_outer.inner
 
         self.input_format_var = tk.StringVar(value='WKT')
         format_options = ['WKT', 'LAT / LON']
@@ -103,8 +135,9 @@ class TileIntersectionApp:
                                fg=self.accent_color, font=self.font_bold)
         input_label.pack(anchor="w")
 
-        input_file_frame = tk.Frame(container, bg=self.frame_bg)
-        input_file_frame.pack(fill="x", pady=(8, 20))
+        input_file_frame_outer = RoundedFrame(container, bg_color=self.frame_bg, radius=12)
+        input_file_frame_outer.pack(fill="x", pady=(8, 20))
+        input_file_frame = input_file_frame_outer.inner
 
         self.file_label_text = tk.StringVar()
         self.update_file_label_text()
@@ -152,14 +185,15 @@ class TileIntersectionApp:
 
 
         # --- Прогресс ---
-        progress_frame = tk.Frame(container, bg=self.bg_color)
-        progress_frame.pack(fill="x", pady=(10, 10))
+        progress_frame_outer = RoundedFrame(container, bg_color=self.frame_bg, radius=12)
+        progress_frame_outer.pack(fill="x", pady=(10, 10))
+        progress_frame = progress_frame_outer.inner
 
         style = ttk.Style()
         style.configure(
             "Accent.Horizontal.TProgressbar",
-            troughcolor=self.bg_color,
-            bordercolor=self.bg_color,
+            troughcolor=self.frame_bg,
+            bordercolor=self.frame_bg,
             background=self.accent_color,
             lightcolor=self.accent_color,
             darkcolor=self.accent_color,
@@ -170,7 +204,7 @@ class TileIntersectionApp:
 
         self.counter_var = tk.StringVar(value="")
         self.counter_label = tk.Label(progress_frame, textvariable=self.counter_var, fg="#3a3a3c",
-                                    bg=self.bg_color, font=self.font_normal)
+                                    bg=self.frame_bg, font=self.font_normal)
         self.counter_label.pack(side="left", pady=5)
 
         # --- Кнопка запуска обработки ---
@@ -254,7 +288,7 @@ class TileIntersectionApp:
             self.input_format = self.format_combo.get()
             self.filename_label.config(
                 text=f"{os.path.basename(self.file_path)} (формат: {self.input_format})",
-                fg="green"
+                fg=self.success_color,
             )
         self.check_all_files()
 
