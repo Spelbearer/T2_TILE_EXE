@@ -105,12 +105,12 @@ class ProcessingWorker(QtCore.QObject):
     finished = QtCore.pyqtSignal(object)
     error = QtCore.pyqtSignal(str)
 
-    def __init__(self, file_path, match_file_path, input_format, output_dir, parent=None):
+    def __init__(self, file_path, match_file_path, input_format, output_path, parent=None):
         super().__init__(parent)
         self.file_path = file_path
         self.match_file_path = match_file_path
         self.input_format = input_format
-        self.output_dir = output_dir
+        self.output_path = output_path
         self.columns_needed = [
             "s2_cell_id_13",
             "geounit_name",
@@ -238,8 +238,7 @@ class ProcessingWorker(QtCore.QObject):
 
         fn1 = os.path.basename(self.file_path)
         fn2 = os.path.basename(self.match_file_path)
-        result_name = f"Потенциал"
-        out_path = os.path.join(self.output_dir, result_name)
+        out_path = self.output_path
         if not out_path.lower().endswith('.xlsx'):
             out_path += '.xlsx'
 
@@ -260,7 +259,7 @@ class TileIntersectionApp(QtWidgets.QWidget):
         )
         self.file_path = None
         self.input_format = "WKT"
-        self.output_dir = os.getcwd()
+        self.output_path = os.path.join(os.getcwd(), "Потенциал.xlsx")
         self.init_ui()
 
     def init_ui(self):
@@ -288,14 +287,14 @@ class TileIntersectionApp(QtWidgets.QWidget):
         ub_layout.addWidget(self.btn_browse)
         layout.addWidget(self.upload_box)
 
-        self.output_box = QtWidgets.QGroupBox("3. Папка для сохранения")
+        self.output_box = QtWidgets.QGroupBox("3. Сохранить файл")
         self.output_box.setObjectName("outputBox")
         ob_layout = QtWidgets.QHBoxLayout(self.output_box)
         self.output_line = QtWidgets.QLineEdit()
         self.output_line.setReadOnly(True)
-        self.output_line.setText(self.output_dir)
-        self.btn_browse_output = QtWidgets.QPushButton("Выбрать папку…")
-        self.btn_browse_output.clicked.connect(self.select_output_dir)
+        self.output_line.setText(self.output_path)
+        self.btn_browse_output = QtWidgets.QPushButton("Сохранить как…")
+        self.btn_browse_output.clicked.connect(self.select_output_file)
         ob_layout.addWidget(self.output_line)
         ob_layout.addWidget(self.btn_browse_output)
         layout.addWidget(self.output_box)
@@ -335,14 +334,15 @@ class TileIntersectionApp(QtWidgets.QWidget):
             self.file_path = path
             self.file_line.setText(path)
 
-    def select_output_dir(self):
-        path = QtWidgets.QFileDialog.getExistingDirectory(
+    def select_output_file(self):
+        path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self,
-            "Выберите папку",
-            self.output_dir,
+            "Сохранить файл",
+            self.output_path,
+            "Excel Files (*.xlsx)"
         )
         if path:
-            self.output_dir = path
+            self.output_path = path
             self.output_line.setText(path)
 
     def start_processing(self):
@@ -355,7 +355,7 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.result_label.clear()
 
         self.thread = QtCore.QThread(self)
-        self.worker = ProcessingWorker(self.file_path, self.match_file_path, self.input_format, self.output_dir)
+        self.worker = ProcessingWorker(self.file_path, self.match_file_path, self.input_format, self.output_path)
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.progress.connect(self.on_progress)
