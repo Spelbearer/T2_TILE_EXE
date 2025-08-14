@@ -1,4 +1,6 @@
-from PyQt6 import QtWidgets, QtCore
+import sys
+
+from PyQt6 import QtWidgets, QtCore, QtGui
 import pandas as pd
 import os
 import re
@@ -6,6 +8,94 @@ from openpyxl import load_workbook
 from s2sphere import CellId, LatLng
 
 WKT_POINT_RE = re.compile(r"POINT\s*\(\s*([\d.\-]+)\s+([\d.\-]+)\s*\)")
+
+
+LIGHT_THEME = {
+    "window_bg": "#F5F5F7",
+    "surface": "#FFFFFF",
+    "text": "#1D1D1F",
+    "secondary": "#6E6E73",
+    "border": "#D2D2D7",
+    "accent": "#0A84FF",
+    "hover": "#F2F2F7",
+    "pressed": "#E5E5EA",
+}
+
+DARK_THEME = {
+    "window_bg": "#1C1C1E",
+    "surface": "#2C2C2E",
+    "text": "#FFFFFF",
+    "secondary": "#98989D",
+    "border": "#3A3A3C",
+    "accent": "#0A84FF",
+    "hover": "#3A3A3C",
+    "pressed": "#2C2C2E",
+}
+
+
+def build_stylesheet(theme: dict) -> str:
+    return f"""
+    QWidget {{
+        background: {theme['window_bg']};
+        color: {theme['text']};
+    }}
+    QGroupBox#formatBox, QGroupBox#uploadBox {{
+        background: {theme['surface']};
+        border: 1px solid {theme['border']};
+        border-radius: 8px;
+        margin-top: 8px;
+    }}
+    QGroupBox::title {{
+        subcontrol-origin: margin;
+        left: 12px;
+        padding: 0 4px;
+        color: {theme['text']};
+        font-size: 17px;
+        font-weight: 600;
+    }}
+    QLineEdit {{
+        background: {theme['surface']};
+        border: 1px solid {theme['border']};
+        border-radius: 6px;
+        padding: 6px 10px;
+        color: {theme['text']};
+    }}
+    QLineEdit:focus {{
+        border: 1px solid {theme['accent']};
+        outline: none;
+    }}
+    QPushButton {{
+        background: {theme['surface']};
+        border: 1px solid {theme['border']};
+        border-radius: 6px;
+        padding: 6px 12px;
+        color: {theme['text']};
+    }}
+    QPushButton:hover {{ background: {theme['hover']}; }}
+    QPushButton:pressed {{ background: {theme['pressed']}; }}
+    QPushButton:focus {{ border: 1px solid {theme['accent']}; }}
+    QComboBox {{
+        background: {theme['surface']};
+        border: 1px solid {theme['border']};
+        border-radius: 6px;
+        padding: 6px 10px;
+        color: {theme['text']};
+    }}
+    QComboBox:focus {{ border: 1px solid {theme['accent']}; }}
+    """
+
+
+def apply_theme(app: QtWidgets.QApplication, dark: bool = False) -> None:
+    theme = DARK_THEME if dark else LIGHT_THEME
+    app.setStyleSheet(build_stylesheet(theme))
+
+
+def set_app_font(app: QtWidgets.QApplication) -> None:
+    for family in ["SF Pro Text", "Inter", "Segoe UI", "Helvetica Neue", "Arial"]:
+        font = QtGui.QFont(family, 13)
+        if QtGui.QFontInfo(font).family() == family:
+            app.setFont(font)
+            break
 
 class ProcessingWorker(QtCore.QObject):
     progress = QtCore.pyqtSignal(int, int)
@@ -156,9 +246,11 @@ class TileIntersectionApp(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Определение тайлов")
-        self.match_file_path = r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
+        self.match_file_path = (
+            r"\\corp.tele2.ru\operations_MR\Operations_All\Потенциал_рынка\яархив_исходники\T_Potential\T_Potential_filtered_last.txt"
+        )
         self.file_path = None
-        self.input_format = 'WKT'
+        self.input_format = "WKT"
         self.output_dir = os.getcwd()
         self.init_ui()
 
@@ -199,21 +291,14 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.result_label.setWordWrap(True)
         layout.addWidget(self.result_label)
 
-        self.setStyleSheet(
-            """
-            QGroupBox#formatBox, QGroupBox#uploadBox {
-                border: 1px solid #D0D5DD;
-                border-radius: 12px;
-                margin-top: 8px;
-                background: #FFFFFF;
-            }
-            QGroupBox#formatBox::title, QGroupBox#uploadBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 4px;
-            }
-            """
-        )
+        for box in (self.format_box, self.upload_box):
+            effect = QtWidgets.QGraphicsDropShadowEffect(
+                blurRadius=12,
+                xOffset=0,
+                yOffset=3,
+                color=QtGui.QColor(0, 0, 0, 25),
+            )
+            box.setGraphicsEffect(effect)
 
     def on_format_change(self, index):
         self.input_format = self.format_combo.currentText()
@@ -269,7 +354,14 @@ class TileIntersectionApp(QtWidgets.QWidget):
         QtWidgets.QMessageBox.critical(self, "Ошибка", message)
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
+    dark = "--dark" in sys.argv
+    # Enable High DPI pixmaps if supported by the current Qt build.
+    attr = getattr(QtCore.Qt.ApplicationAttribute, "AA_UseHighDpiPixmaps", None)
+    if attr is not None:
+        QtWidgets.QApplication.setAttribute(attr)
+    app = QtWidgets.QApplication(sys.argv)
+    set_app_font(app)
+    apply_theme(app, dark)
     window = TileIntersectionApp()
     window.show()
     app.exec()
