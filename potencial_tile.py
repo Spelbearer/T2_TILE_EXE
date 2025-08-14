@@ -155,7 +155,13 @@ class ProcessingWorker(QtCore.QObject):
 
     def process_file(self):
         fmt = self.input_format
-        df = pd.read_csv(self.file_path, sep=';')
+        # Determine how to read the input file. Excel files are read from the
+        # first sheet, while text-based formats use a semicolon-separated CSV
+        # reader as before.
+        if self.file_path.lower().endswith(('.xls', '.xlsx')):
+            df = pd.read_excel(self.file_path, sheet_name=0)
+        else:
+            df = pd.read_csv(self.file_path, sep=';')
 
         if fmt == 'WKT':
             if 'BS_POSITION' not in df.columns:
@@ -304,7 +310,12 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.input_format = self.format_combo.currentText()
 
     def select_file(self):
-        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Выберите файл", "", "Text/Excel Files (*.txt *.csv *.xlsx);;All Files (*)")
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(
+            self,
+            "Выберите файл",
+            "",
+            "Text/Excel Files (*.txt *.csv *.xls *.xlsx);;All Files (*)",
+        )
         if path:
             self.file_path = path
             self.file_line.setText(path)
