@@ -124,7 +124,7 @@ class TileIntersectionApp:
                                 fg=self.accent_color, font=self.font_bold)
         format_label.pack(anchor="w")
 
-        format_frame = RoundedFrame(container, bg=self.frame_bg, corner_radius=15)
+        format_frame = RoundedFrame(container, bg=self.frame_bg, corner_radius=10, pad=10)
         format_frame.pack(fill="x", pady=(8, 20))
 
         self.input_format_var = tk.StringVar(value='WKT')
@@ -140,7 +140,7 @@ class TileIntersectionApp:
                                fg=self.accent_color, font=self.font_bold)
         input_label.pack(anchor="w")
 
-        input_file_frame = RoundedFrame(container, bg=self.frame_bg, corner_radius=15)
+        input_file_frame = RoundedFrame(container, bg=self.frame_bg, corner_radius=10, pad=10)
         input_file_frame.pack(fill="x", pady=(8, 20))
 
         self.file_label_text = tk.StringVar()
@@ -205,10 +205,6 @@ class TileIntersectionApp:
                                         mode='determinate', style="Accent.Horizontal.TProgressbar")
         self.progress.pack(side="left", padx=(0, 10), pady=5)
 
-        self.counter_var = tk.StringVar(value="")
-        self.counter_label = tk.Label(progress_frame, textvariable=self.counter_var, fg="#3a3a3c",
-                                    bg=self.bg_color, font=self.font_normal)
-        self.counter_label.pack(side="left", pady=5)
 
         # --- Кнопка запуска обработки ---
         self.btn_process = tk.Button(
@@ -326,7 +322,7 @@ class TileIntersectionApp:
             return None
 
     def update_progress_ui(self):
-        """Обновление прогресса и счетчика в главном потоке через after()"""
+        """Обновление индикатора прогресса в главном потоке через after()"""
         with self.lock:
             current = self.current_row
             total = self.total_rows
@@ -334,8 +330,6 @@ class TileIntersectionApp:
         if total > 0:
             self.progress['maximum'] = total
             self.progress['value'] = current
-            percent = (current / total)
-            self.counter_var.set(f"tile_id: {current}/{total} ({percent:.0%})")
             self.root.update_idletasks()
 
         if current < total:
@@ -468,7 +462,6 @@ class TileIntersectionApp:
 
     def start_processing(self):
         self.btn_process.config(state=tk.DISABLED)
-        self.counter_var.set("Обработка...")
         self.progress.pack()
         self.progress['value'] = 0
         self.result.config(text="", fg="#2c3e50")
@@ -485,7 +478,6 @@ class TileIntersectionApp:
     def on_processing_finished(self, result):
         self.btn_process.config(state=tk.NORMAL)
         self.progress.pack_forget()
-        self.counter_var.set("")
         if result:
             output_path, final_count, found_rows, total_rows = result
             self.result.config(
