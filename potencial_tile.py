@@ -228,6 +228,9 @@ class ProcessingWorker(QtCore.QObject):
             suffixes=('', '_spr')
         )
 
+        if 's2_cell_id_13' in merged.columns:
+            merged['s2_cell_id_13'] = merged['s2_cell_id_13'].fillna(merged['tile_id'])
+
         if 'tile_id' in merged.columns:
             merged.drop(columns=['tile_id'], inplace=True)
 
