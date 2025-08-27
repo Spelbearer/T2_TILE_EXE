@@ -105,12 +105,15 @@ class ProcessingWorker(QtCore.QObject):
     finished = QtCore.pyqtSignal(object)
     error = QtCore.pyqtSignal(str)
 
-    def __init__(self, file_path, match_file_path, input_format, output_path, parent=None):
+    def __init__(self, file_path, match_file_path, input_format, output_path, selected_columns=None, parent=None):
         super().__init__(parent)
         self.file_path = file_path
         self.match_file_path = match_file_path
         self.input_format = input_format
         self.output_path = output_path
+        # Keep only user-selected columns from the input file. ``None`` means
+        # that all columns should be loaded.
+        self.selected_columns = selected_columns
         self.columns_needed = [
             "s2_cell_id_13",
             "geounit_name",
@@ -161,10 +164,13 @@ class ProcessingWorker(QtCore.QObject):
         # Determine how to read the input file. Excel files are read from the
         # first sheet, while text-based formats use a semicolon-separated CSV
         # reader as before.
+        # Read only the columns selected by the user. ``usecols=None`` means
+        # that pandas will read all columns.
+        usecols = self.selected_columns if self.selected_columns else None
         if self.file_path.lower().endswith(('.xls', '.xlsx')):
-            df = read_excel(self.file_path, sheet_name=0)
+            df = read_excel(self.file_path, sheet_name=0, usecols=usecols)
         else:
-            df = read_csv(self.file_path, sep=';')
+            df = read_csv(self.file_path, sep=';', usecols=usecols)
 
         if fmt == 'WKT':
             if 'BS_POSITION' not in df.columns:
@@ -263,6 +269,8 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.file_path = None
         self.input_format = "WKT"
         self.output_path = os.path.join(os.getcwd(), "Потенциал.xlsx")
+        # List of columns available in the currently selected file.
+        self.available_columns = []
         self.init_ui()
 
     def init_ui(self):
@@ -290,7 +298,21 @@ class TileIntersectionApp(QtWidgets.QWidget):
         ub_layout.addWidget(self.btn_browse)
         layout.addWidget(self.upload_box)
 
-        self.output_box = QtWidgets.QGroupBox("3. Сохранить файл")
+        # Box for selecting which columns from the loaded file should be
+        # processed. It is disabled until a file is loaded and the columns are
+        # enumerated.
+        self.columns_box = QtWidgets.QGroupBox("3. Столбцы для работы")
+        columns_layout = QtWidgets.QVBoxLayout(self.columns_box)
+        self.select_all_cb = QtWidgets.QCheckBox("Выбрать все")
+        self.select_all_cb.stateChanged.connect(self.on_select_all_columns)
+        columns_layout.addWidget(self.select_all_cb)
+        self.columns_list = QtWidgets.QListWidget()
+        self.columns_list.itemChanged.connect(self.update_select_all_state)
+        columns_layout.addWidget(self.columns_list)
+        self.columns_box.setDisabled(True)
+        layout.addWidget(self.columns_box)
+
+        self.output_box = QtWidgets.QGroupBox("4. Сохранить файл")
         self.output_box.setObjectName("outputBox")
         ob_layout = QtWidgets.QHBoxLayout(self.output_box)
         self.output_line = QtWidgets.QLineEdit()
@@ -314,7 +336,7 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.result_label.setWordWrap(True)
         layout.addWidget(self.result_label)
 
-        for box in (self.format_box, self.upload_box, self.output_box):
+        for box in (self.format_box, self.upload_box, self.columns_box, self.output_box):
             effect = QtWidgets.QGraphicsDropShadowEffect(
                 blurRadius=12,
                 xOffset=0,
@@ -336,6 +358,7 @@ class TileIntersectionApp(QtWidgets.QWidget):
         if path:
             self.file_path = path
             self.file_line.setText(path)
+            self.load_columns()
 
     def select_output_file(self):
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -348,9 +371,67 @@ class TileIntersectionApp(QtWidgets.QWidget):
             self.output_path = path
             self.output_line.setText(path)
 
+    def load_columns(self):
+        """Read the header of the selected file and populate the column list."""
+        self.available_columns = []
+        if not self.file_path:
+            return
+        try:
+            if self.file_path.lower().endswith(('.xls', '.xlsx')):
+                df = read_excel(self.file_path, nrows=0)
+            else:
+                df = read_csv(self.file_path, sep=';', nrows=0)
+            self.available_columns = list(df.columns)
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", f"Не удалось прочитать столбцы: {e}")
+            self.available_columns = []
+
+        self.columns_list.clear()
+        for name in self.available_columns:
+            item = QtWidgets.QListWidgetItem(name)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            self.columns_list.addItem(item)
+
+        self.select_all_cb.setChecked(True)
+        self.columns_box.setDisabled(not self.available_columns)
+
+    def get_selected_columns(self):
+        cols = []
+        for i in range(self.columns_list.count()):
+            item = self.columns_list.item(i)
+            if item.checkState() == Qt.Checked:
+                cols.append(item.text())
+        return cols
+
+    def on_select_all_columns(self, state):
+        for i in range(self.columns_list.count()):
+            item = self.columns_list.item(i)
+            item.setCheckState(Qt.Checked if state == Qt.Checked else Qt.Unchecked)
+
+    def update_select_all_state(self, _item=None):
+        checked = sum(
+            1 for i in range(self.columns_list.count())
+            if self.columns_list.item(i).checkState() == Qt.Checked
+        )
+        total = self.columns_list.count()
+        if checked == 0:
+            self.select_all_cb.setTristate(False)
+            self.select_all_cb.setCheckState(Qt.Unchecked)
+        elif checked == total:
+            self.select_all_cb.setTristate(False)
+            self.select_all_cb.setCheckState(Qt.Checked)
+        else:
+            self.select_all_cb.setTristate(True)
+            self.select_all_cb.setCheckState(Qt.PartiallyChecked)
+
     def start_processing(self):
         if not self.file_path:
             QtWidgets.QMessageBox.warning(self, "Ошибка", "Выберите файл")
+            return
+        selected_columns = self.get_selected_columns()
+        if not selected_columns:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Выберите хотя бы один столбец")
             return
         self.btn_process.setEnabled(False)
         self.progress.setVisible(True)
@@ -358,7 +439,13 @@ class TileIntersectionApp(QtWidgets.QWidget):
         self.result_label.clear()
 
         self.thread = QtCore.QThread(self)
-        self.worker = ProcessingWorker(self.file_path, self.match_file_path, self.input_format, self.output_path)
+        self.worker = ProcessingWorker(
+            self.file_path,
+            self.match_file_path,
+            self.input_format,
+            self.output_path,
+            selected_columns,
+        )
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.progress.connect(self.on_progress)
